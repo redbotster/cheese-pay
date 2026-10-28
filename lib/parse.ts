@@ -1,4 +1,4 @@
-import { MAX_TIP } from "./config.ts";
+import { CEIL_MAX_TIP } from "./config.ts";
 
 export type ParsedTip = { toHandle: string; amount: bigint } | { error: string };
 
@@ -16,6 +16,6 @@ export function parseTip(text: string, botHandle: string): ParsedTip | null {
   const [whole, frac = ""] = raw.split(".");
   const amount = BigInt(whole) * 1_000_000n + BigInt((frac + "00").slice(0, 2)) * 10_000n;
   if (amount <= 0n) return { error: "Amount must be more than $0." };
-  if (amount > MAX_TIP) return { error: "Tips are capped at $1 each." };
+  if (amount > CEIL_MAX_TIP) return { error: "Tips are capped at $5 each." };
   return { toHandle: handles.find((h) => h.toLowerCase() === unique[0])!, amount };
 }

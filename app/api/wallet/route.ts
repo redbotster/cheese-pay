@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { setWallet } from "@/lib/db";
-import { CHAIN_ID, DAILY_CAP, PERIOD_SECONDS, USDC } from "@/lib/config";
+import { CEIL_DAILY, CHAIN_ID, PERIOD_SECONDS, USDC } from "@/lib/config";
 
 /** Saves the wallet + signed spend permission the browser got from the passkey wallet.
  *  The body is user-supplied, so every field that matters is checked against our own config. */
@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
   if (String(p.token).toLowerCase() !== USDC.toLowerCase()) return bad("Permission must be for USDC.");
   if ((sp.chainId ?? CHAIN_ID) !== CHAIN_ID) return bad("Permission must be on Base.");
   if (Number(p.period) !== PERIOD_SECONDS) return bad("Permission must reset daily.");
-  if (BigInt(p.allowance) > DAILY_CAP || BigInt(p.allowance) <= 0n) return bad("Daily limit is above $10.");
+  if (BigInt(p.allowance) > CEIL_DAILY || BigInt(p.allowance) <= 0n) return bad("Daily limit must be between $0.01 and $50.");
   if (Number(p.end) <= Date.now() / 1000) return bad("Permission already expired.");
   if (!/^0x[0-9a-fA-F]{40}$/.test(p.account)) return bad("Bad wallet address.");
-  setWallet(s.xId, p.account, JSON.stringify(sp));
+  setWallet(s.xId, p.account, JSON.stringify(sp), BigInt(p.allowance)); // a fresh signature resets the daily limit to what they just approved
   return NextResponse.json({ ok: true, wallet: p.account });
 }

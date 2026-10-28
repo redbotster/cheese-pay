@@ -1,8 +1,10 @@
 // USDC has 6 decimals. All money is integer micro-USDC (1_000_000 = $1) so there is no float math.
 export const CHAIN_ID = 8453; // Base
 export const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
-export const MAX_TIP = 1_000_000n; // $1 per tip
-export const DAILY_CAP = 10_000_000n; // $10 per rolling 24h
+export const DEFAULT_MAX_TIP = 1_000_000n; // $1 per tip, until the user changes it
+export const DEFAULT_DAILY = 10_000_000n; // $10 per rolling 24h, until the user changes it
+export const CEIL_MAX_TIP = 5_000_000n; // hard ceilings: nobody can set limits above these
+export const CEIL_DAILY = 50_000_000n;
 export const PERIOD_DAYS = 1;
 export const PERIOD_SECONDS = 86_400;
 export const PENDING_TTL_MS = 7 * 86_400_000; // tips to people without a wallet wait this long

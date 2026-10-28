@@ -18,3 +18,13 @@ test("self tip rejected even with a wallet record", async () => {
   const r = await handleTip({ tweetId: "t2", fromX: "3", toX: "3", toHandle: "carol", amount: 500_000n });
   assert.equal(r.kind, "rejected");
 });
+
+test("daily limit can never exceed what the user signed onchain", async () => {
+  const { limitsOf } = await import("../lib/tip.ts");
+  const u = (over: object) => ({ x_id: "9", handle: "z", wallet: "0x1", created_at: 0, max_tip: null, daily_cap: null, paused: 0,
+    permission: JSON.stringify({ permission: { allowance: "5000000" } }), ...over }) as never;
+  assert.equal(limitsOf(u({ daily_cap: "20000000" })).dailyCap, 5_000_000n); // app setting higher than signed: signed wins
+  assert.equal(limitsOf(u({ daily_cap: "2000000" })).dailyCap, 2_000_000n); // lowered: instant
+  assert.equal(limitsOf(u({ paused: 1 })).paused, true);
+  assert.equal(limitsOf(u({})).maxTip, 1_000_000n); // default
+});

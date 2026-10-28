@@ -19,17 +19,23 @@ CREATE TABLE IF NOT EXISTS tips (
 CREATE TABLE IF NOT EXISTS seen (tweet_id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS nudges (handle TEXT PRIMARY KEY, last_at INTEGER NOT NULL);
 `);
+  for (const col of ["max_tip TEXT", "daily_cap TEXT", "paused INTEGER NOT NULL DEFAULT 0"]) {
+    try { _db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already there */ }
+  }
   return _db;
 }
 
-export type User = { x_id: string; handle: string; wallet: string | null; permission: string | null; created_at: number };
+export type User = { x_id: string; handle: string; wallet: string | null; permission: string | null; created_at: number; max_tip: string | null; daily_cap: string | null; paused: number };
 export type Tip = { id: number; tweet_id: string; from_x: string; to_x: string; to_handle: string; amount: string; status: string; tx_hash: string | null; reason: string | null; created_at: number; expires_at: number | null };
 
 export const upsertUser = (x_id: string, handle: string) =>
   d().prepare(`INSERT INTO users (x_id, handle, created_at) VALUES (?,?,?) ON CONFLICT(x_id) DO UPDATE SET handle=excluded.handle`).run(x_id, handle.toLowerCase(), Date.now());
 export const userById = (x: string) => d().prepare(`SELECT * FROM users WHERE x_id=?`).get(x) as User | undefined;
 export const userByHandle = (h: string) => d().prepare(`SELECT * FROM users WHERE handle=?`).get(h.toLowerCase()) as User | undefined;
-export const setWallet = (x: string, wallet: string, permission: string) => d().prepare(`UPDATE users SET wallet=?, permission=? WHERE x_id=?`).run(wallet, permission, x);
+export const setWallet = (x: string, wallet: string, permission: string, dailyCap?: bigint) =>
+  d().prepare(`UPDATE users SET wallet=?, permission=?, daily_cap=COALESCE(?, daily_cap) WHERE x_id=?`).run(wallet, permission, dailyCap?.toString() ?? null, x);
+export const setLimits = (x: string, maxTip: bigint, dailyCap: bigint, paused: boolean) =>
+  d().prepare(`UPDATE users SET max_tip=?, daily_cap=?, paused=? WHERE x_id=?`).run(maxTip.toString(), dailyCap.toString(), paused ? 1 : 0, x);
 
 /** Idempotent on tweet_id: returns false if this tweet was already handled. */
 export const claimTip = (tweet_id: string, from_x: string, to_x: string, to_handle: string, amount: bigint, expires_at: number | null) =>
