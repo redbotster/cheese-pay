@@ -55,3 +55,31 @@ test("web tips: unknown handle, pending reserves the daily limit, and a retry is
   const again = await webTip({ fromX: "50", to: "@alice", amount: 1_000_000n, key: "key-bbbbbbbb" }, known);
   assert.ok(!("error" in again) && again.outcome.kind === "duplicate"); // double-click / retry
 });
+
+test("sessions can be revoked one at a time or all at once", async () => {
+  const { createSession, sessionValid, revokeSession, revokeAllSessions } = await import("../lib/db.ts");
+  const later = Date.now() + 60_000;
+  await createSession("s1", "u1", later); await createSession("s2", "u1", later); await createSession("s3", "u2", later);
+  await createSession("old", "u1", Date.now() - 1);
+  assert.equal(await sessionValid("s1"), true);
+  assert.equal(await sessionValid("old"), false); // expired
+  await revokeSession("s1");
+  assert.equal(await sessionValid("s1"), false);
+  assert.equal(await sessionValid("s2"), true);
+  await revokeAllSessions("u1");
+  assert.equal(await sessionValid("s2"), false);
+  assert.equal(await sessionValid("s3"), true); // other users untouched
+  assert.equal(await sessionValid("nope"), false);
+});
+
+test("rate limit counts within a window and same-origin check rejects cross-site posts", async () => {
+  const { allow, sameOrigin } = await import("../lib/security.ts");
+  let ok = 0;
+  for (let i = 0; i < 5; i++) if (await allow("t:k", 3, 60)) ok++;
+  assert.equal(ok, 3);
+  const req = (h: Record<string, string>) => new Request("https://cheesepay.me/api/tip", { method: "POST", headers: h });
+  assert.equal(sameOrigin(req({ host: "cheesepay.me", origin: "https://cheesepay.me" })), true);
+  assert.equal(sameOrigin(req({ host: "cheesepay.me", origin: "https://evil.example" })), false);
+  assert.equal(sameOrigin(req({ host: "cheesepay.me", "sec-fetch-site": "cross-site" })), false);
+  assert.equal(sameOrigin(req({ host: "cheesepay.me" })), false); // no proof of origin: refuse
+});

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BASE } from "@/lib/base";
 import { setSession } from "@/lib/session";
+import { allow, clientIp } from "@/lib/security";
 import { upsertUser } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
+  if (!(await allow(`cb:${clientIp(req)}`, 20, 60))) return new NextResponse("Too many attempts. Try again in a minute.", { status: 429 });
   const u = req.nextUrl;
   const state = u.searchParams.get("state"), code = u.searchParams.get("code");
   const verifier = req.cookies.get("cp_verifier")?.value;

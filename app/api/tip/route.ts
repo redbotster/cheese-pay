@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { webTip } from "@/lib/webtip";
 import { usd } from "@/lib/limits";
+import { allow, sameOrigin } from "@/lib/security";
 
 export const maxDuration = 60; // an onchain send waits for confirmations
 
@@ -11,8 +12,11 @@ const micro = (v: unknown) => {
 };
 
 export async function POST(req: NextRequest) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const s = await getSession();
   if (!s) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
+  if (!(await allow(`tip:${s.xId}`, 12, 60)) || !(await allow(`tipday:${s.xId}`, 300, 86400)))
+    return NextResponse.json({ error: "Slow down a little and try again." }, { status: 429 });
   const b = await req.json().catch(() => ({}));
   const amount = micro(b.amount);
   const r = await webTip({ fromX: s.xId, to: String(b.to ?? ""), amount, key: String(b.key ?? "") });

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { randomBytes, createHash } from "node:crypto";
+import { allow, clientIp } from "@/lib/security";
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!(await allow(`login:${clientIp(req)}`, 20, 60))) return new NextResponse("Too many attempts. Try again in a minute.", { status: 429 });
   const state = randomBytes(16).toString("hex");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");

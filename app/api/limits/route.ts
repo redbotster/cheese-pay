@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { setLimits, userById } from "@/lib/db";
 import { CEIL_DAILY, CEIL_MAX_TIP } from "@/lib/config";
 import { limitsOf } from "@/lib/tip";
+import { allow, sameOrigin } from "@/lib/security";
 
 const micro = (v: unknown) => {
   const n = Number(v);
@@ -11,9 +12,11 @@ const micro = (v: unknown) => {
 
 /** Lowering limits or pausing is instant. Raising the daily limit past what the user signed needs a new signature (409). */
 export async function POST(req: NextRequest) {
-  const s = await getSession();
+  if (!sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const s = await getSession();
   const u = s && (await userById(s.xId));
   if (!s || !u) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
+  if (!(await allow(`limits:${s.xId}`, 10, 60))) return NextResponse.json({ error: "Slow down a little and try again." }, { status: 429 });
   if (!u.wallet) return NextResponse.json({ error: "Create your wallet first." }, { status: 400 });
   const b = await req.json();
   const maxTip = micro(b.maxTip), dailyCap = micro(b.dailyCap);

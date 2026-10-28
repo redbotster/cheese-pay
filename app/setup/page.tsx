@@ -6,6 +6,7 @@ import { usd } from "@/lib/limits";
 import Connect from "./connect";
 import Limits from "./limits";
 import TipForm from "./tip-form";
+import Logout from "../logout";
 import { limitsOf } from "@/lib/tip";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,8 @@ export default async function Setup() {
     <h2>Activity</h2>
     {tips.length === 0 ? <p>No tips yet.</p> : <table><tbody>{tips.map((t) => (
       <tr key={t.id}><td>{t.from_x === s.xId ? `You to @${t.to_handle}` : "Received"}</td><td>{usd(BigInt(t.amount))}</td><td>{t.status}{t.reason ? `: ${t.reason}` : ""}</td></tr>))}</tbody></table>}
+    <h2>Security</h2>
+    <div className="card"><p>Lost a device or signed in somewhere you don't trust? This ends every Cheese Pay session, including this one.</p><Logout everywhere label="Log out of all devices" /></div>
     <p><a href={BASE || "/"}>Home</a></p>
   </>);
 }

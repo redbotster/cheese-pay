@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Fredoka, Inter } from "next/font/google";
 import { Wedge } from "./wedge";
+import Logout from "./logout";
+import { getSession } from "@/lib/session";
 
 const display = Fredoka({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display" });
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -52,13 +54,14 @@ table{width:100%;border-collapse:collapse}td{padding:10px 4px;border-bottom:1px 
 footer{margin-top:48px;font-size:.85rem;text-align:center}
 @media (max-width:520px){.hero{justify-content:center;text-align:center}.hero .wedge{width:120px}}`;
 
-export default function Root({ children }: { children: ReactNode }) {
+export default async function Root({ children }: { children: ReactNode }) {
+  const s = await getSession();
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <head><meta name="viewport" content="width=device-width, initial-scale=1" /><style dangerouslySetInnerHTML={{ __html: css }} /></head>
       <body>
         <main>
-          <nav className="top"><a href="/"><Wedge />Cheese Pay</a></nav>
+          <nav className="top"><a href="/"><Wedge />Cheese Pay</a>{s && <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: ".95rem" }}>@{s.handle} <Logout /></span>}</nav>
           {children}
           <footer><p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
         </main>

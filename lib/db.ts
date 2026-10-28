@@ -16,6 +16,9 @@ function db(): Promise<Client> {
       `CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS seen (tweet_id TEXT PRIMARY KEY)`,
       `CREATE TABLE IF NOT EXISTS handles (handle TEXT PRIMARY KEY, x_id TEXT NOT NULL, at INTEGER NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, x_id TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)`,
+      `CREATE INDEX IF NOT EXISTS sessions_x ON sessions(x_id)`,
+      `CREATE TABLE IF NOT EXISTS ratelimit (k TEXT NOT NULL, w INTEGER NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (k, w))`,
       `CREATE TABLE IF NOT EXISTS nudges (handle TEXT PRIMARY KEY, last_at INTEGER NOT NULL)`,
     ]);
     return c;
@@ -78,3 +81,20 @@ export const kvSet = (k: string, v: string) => run(`INSERT INTO kv (k,v) VALUES 
 export const cachedHandle = async (handle: string) => (await one<{ x_id: string; at: number }>(`SELECT x_id, at FROM handles WHERE handle=?`, [handle.toLowerCase()]));
 export const cacheHandle = (handle: string, x_id: string) =>
   run(`INSERT INTO handles (handle,x_id,at) VALUES (?,?,?) ON CONFLICT(handle) DO UPDATE SET x_id=excluded.x_id, at=excluded.at`, [handle.toLowerCase(), x_id, Date.now()]);
+
+// ---- sessions: a signed cookie alone is not enough, the session must also exist here and not be revoked
+export const createSession = (sid: string, x_id: string, expires_at: number) =>
+  run(`INSERT INTO sessions (sid, x_id, created_at, expires_at) VALUES (?,?,?,?)`, [sid, x_id, Date.now(), expires_at]);
+export const sessionValid = async (sid: string) =>
+  !!(await one<{ sid: string }>(`SELECT sid FROM sessions WHERE sid=? AND revoked=0 AND expires_at > ?`, [sid, Date.now()]));
+export const revokeSession = (sid: string) => run(`UPDATE sessions SET revoked=1 WHERE sid=?`, [sid]);
+export const revokeAllSessions = (x_id: string) => run(`UPDATE sessions SET revoked=1 WHERE x_id=? AND revoked=0`, [x_id]);
+export const pruneSessions = () => run(`DELETE FROM sessions WHERE expires_at < ?`, [Date.now() - 86_400_000]);
+
+/** Fixed-window counter. Returns how many hits this key has had in the current window, including this one. */
+export const hit = async (key: string, windowSec: number) => {
+  const w = Math.floor(Date.now() / 1000 / windowSec);
+  const r = await one<{ n: number }>(`INSERT INTO ratelimit (k, w, n) VALUES (?,?,1) ON CONFLICT(k, w) DO UPDATE SET n = n + 1 RETURNING n`, [key, w]);
+  if (Math.random() < 0.01) await run(`DELETE FROM ratelimit WHERE w < ?`, [w - 2]); // cheap housekeeping
+  return Number(r?.n ?? 1);
+};

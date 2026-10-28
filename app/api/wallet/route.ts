@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { allow, sameOrigin } from "@/lib/security";
 import { setWallet } from "@/lib/db";
 import { releasePending } from "@/lib/tip";
 import { CEIL_DAILY, CHAIN_ID, PERIOD_SECONDS, USDC } from "@/lib/config";
@@ -9,8 +10,10 @@ export const maxDuration = 60;
 /** Saves the wallet + signed spend permission the browser got from the passkey wallet.
  *  The body is user-supplied, so every field that matters is checked against our own config. */
 export async function POST(req: NextRequest) {
+  if (!sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const s = await getSession();
   if (!s) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
+  if (!(await allow(`wallet:${s.xId}`, 10, 60))) return NextResponse.json({ error: "Slow down a little and try again." }, { status: 429 });
   const sp = (await req.json())?.permission;
   const p = sp?.permission;
   const spender = process.env.SPENDER_ADDRESS?.toLowerCase();
