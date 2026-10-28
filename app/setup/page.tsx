@@ -3,7 +3,6 @@ import { BASE } from "@/lib/base";
 import { getSession } from "@/lib/session";
 import { expireOld, pendingFor, tipsFor, userById } from "@/lib/db";
 import { usd } from "@/lib/limits";
-import Connect from "./connect";
 import Limits from "./limits";
 import TipForm from "./tip-form";
 import Logout from "../logout";
@@ -26,7 +25,7 @@ export default async function Setup() {
       ? <><div className="card"><b>Ready.</b> Wallet <code>{u.wallet.slice(0, 6)}…{u.wallet.slice(-4)}</code> on Base. Add USDC on Base to this address to start tipping.</div>
           <TipForm maxTip={Number(limitsOf(u).maxTip) / 1e6} />
           <Limits wallet={u.wallet} spender={process.env.NEXT_PUBLIC_SPENDER_ADDRESS!} maxTip={Number(limitsOf(u).maxTip) / 1e6} dailyCap={Number(limitsOf(u).dailyCap) / 1e6} paused={limitsOf(u).paused} /></>
-      : <Connect spender={process.env.NEXT_PUBLIC_SPENDER_ADDRESS!} />}
+      : <div className="card"><b>Wallets are coming soon.</b><p>We're moving Cheese Pay to 1Claw passkey wallets: your own Safe, locked with Face ID or a fingerprint, with your limits enforced onchain. Wallet setup opens here as soon as it's ready.</p></div>}
     <h2>Activity</h2>
     {tips.length === 0 ? <p>No tips yet.</p> : <table><tbody>{tips.map((t) => (
       <tr key={t.id}><td>{t.from_x === s.xId ? `You to @${t.to_handle}` : "Received"}</td><td>{usd(BigInt(t.amount))}</td><td>{t.status}{t.reason ? `: ${t.reason}` : ""}</td></tr>))}</tbody></table>}

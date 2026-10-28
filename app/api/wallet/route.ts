@@ -10,6 +10,8 @@ export const maxDuration = 60;
 /** Saves the wallet + signed spend permission the browser got from the passkey wallet.
  *  The body is user-supplied, so every field that matters is checked against our own config. */
 export async function POST(req: NextRequest) {
+  // Coinbase Base Account wallets are switched off while Cheese Pay moves to 1Claw passkey Safes.
+  if (process.env.ENABLE_COINBASE_WALLET !== "1") return NextResponse.json({ error: "Wallet setup is coming soon." }, { status: 503 });
   if (!sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const s = await getSession();
   if (!s) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
