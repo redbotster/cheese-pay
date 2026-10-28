@@ -84,7 +84,7 @@ export async function releasePending(toX: string): Promise<Array<{ tip: Tip; out
     const from = await userById(tip.from_x);
     const amount = BigInt(tip.amount);
     const v = checkTip({
-      amount, sentLast24h: await sentLast24h(tip.from_x), selfTip: false,
+      amount, sentLast24h: await sentLast24h(tip.from_x, tip.id), selfTip: false,
       hasWallet: !!from?.wallet, permissionActive: from ? await permissionActive(from, amount) : false, ...limitsOf(from),
     });
     if (!v.ok) { await setTip(tip.id, "rejected", null, v.reason); out.push({ tip, outcome: { kind: "rejected", reason: v.reason } }); continue; }

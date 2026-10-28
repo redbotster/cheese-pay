@@ -15,6 +15,7 @@ function db(): Promise<Client> {
         amount TEXT NOT NULL, status TEXT NOT NULL, tx_hash TEXT, reason TEXT, created_at INTEGER NOT NULL, expires_at INTEGER)`,
       `CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS seen (tweet_id TEXT PRIMARY KEY)`,
+      `CREATE TABLE IF NOT EXISTS handles (handle TEXT PRIMARY KEY, x_id TEXT NOT NULL, at INTEGER NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS nudges (handle TEXT PRIMARY KEY, last_at INTEGER NOT NULL)`,
     ]);
     return c;
@@ -49,17 +50,18 @@ export const setTip = (id: number, status: string, tx_hash?: string | null, reas
   run(`UPDATE tips SET status=?, tx_hash=COALESCE(?,tx_hash), reason=COALESCE(?,reason) WHERE id=?`, [status, tx_hash ?? null, reason ?? null, id]);
 export const pendingFor = (to_x: string) => all<Tip>(`SELECT * FROM tips WHERE to_x=? AND status='pending' AND expires_at > ?`, [to_x, Date.now()]);
 /** Marks overdue pending tips expired and returns exactly the ones it expired, so each sender is told once. */
-export const expireOld = async () => {
+export const expireOld = async (webOnly = false) => {
   const out: Tip[] = [];
-  for (const t of await all<Tip>(`SELECT * FROM tips WHERE status='pending' AND expires_at <= ?`, [Date.now()]))
+  for (const t of await all<Tip>(`SELECT * FROM tips WHERE status='pending' AND expires_at <= ?` + (webOnly ? ` AND tweet_id LIKE 'web:%'` : ""), [Date.now()]))
     if ((await run(`UPDATE tips SET status='expired' WHERE id=? AND status='pending'`, [t.id])) === 1) out.push(t);
   return out;
 };
 
-/** Counts sent AND in-flight tips so two simultaneous tips cannot both slip under the cap. */
-export const sentLast24h = async (from_x: string) =>
-  BigInt((await one<{ s: string }>(`SELECT CAST(COALESCE(SUM(CAST(amount AS INTEGER)),0) AS TEXT) AS s FROM tips WHERE from_x=? AND status IN ('sending','sent') AND created_at > ?`,
-    [from_x, Date.now() - 86_400_000]))!.s);
+/** Money already committed in the last 24h: sent, in flight, and waiting for a recipient. Waiting tips reserve
+ *  capacity so nobody can queue more than their daily limit. `excludeId` lets a waiting tip be re-checked without counting itself. */
+export const sentLast24h = async (from_x: string, excludeId = 0) =>
+  BigInt((await one<{ s: string }>(`SELECT CAST(COALESCE(SUM(CAST(amount AS INTEGER)),0) AS TEXT) AS s FROM tips WHERE from_x=? AND id<>? AND status IN ('sending','sent','pending') AND created_at > ?`,
+    [from_x, excludeId, Date.now() - 86_400_000]))!.s);
 export const tipsFor = (x: string) => all<Tip>(`SELECT * FROM tips WHERE from_x=? OR to_x=? ORDER BY id DESC LIMIT 50`, [x, x]);
 
 export const shouldNudge = async (handle: string) => {
@@ -72,3 +74,7 @@ export const markSeen = async (id: string) => (await run(`INSERT OR IGNORE INTO 
 export const pendingRecipients = async () => (await all<{ to_x: string }>(`SELECT DISTINCT to_x FROM tips WHERE status='pending'`)).map((r) => r.to_x);
 export const kvGet = async (k: string) => (await one<{ v: string }>(`SELECT v FROM kv WHERE k=?`, [k]))?.v;
 export const kvSet = (k: string, v: string) => run(`INSERT INTO kv (k,v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v`, [k, v]);
+
+export const cachedHandle = async (handle: string) => (await one<{ x_id: string; at: number }>(`SELECT x_id, at FROM handles WHERE handle=?`, [handle.toLowerCase()]));
+export const cacheHandle = (handle: string, x_id: string) =>
+  run(`INSERT INTO handles (handle,x_id,at) VALUES (?,?,?) ON CONFLICT(handle) DO UPDATE SET x_id=excluded.x_id, at=excluded.at`, [handle.toLowerCase(), x_id, Date.now()]);

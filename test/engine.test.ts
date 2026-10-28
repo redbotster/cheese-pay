@@ -38,3 +38,20 @@ test("an overdue pending tip is expired and reported exactly once", async () => 
   assert.equal((await byTweet("t-old"))!.status, "expired");
   assert.equal((await expireOld()).length, 0); // second run must not notify again
 });
+
+test("web tips: unknown handle, pending reserves the daily limit, and a retry is a no-op", async () => {
+  const { webTip } = await import("../lib/webtip.ts");
+  const { upsertUser, setWallet, tipByTweet } = await import("../lib/db.ts");
+  const permission = JSON.stringify({ permission: { allowance: "2000000" } }); // user signed a $2/day limit
+  await upsertUser("50", "sender"); await setWallet("50", "0x" + "2".repeat(40), permission, 2_000_000n);
+  // withPermission: permissionActive reads the chain, so a fake permission is "inactive" -> the engine rejects before sending
+  const known = async (h: string) => (h === "nobody" ? null : { id: "900" });
+  assert.deepEqual(await webTip({ fromX: "50", to: "@nobody", amount: 1_000_000n, key: "key-aaaaaaaa" }, known), { error: "We couldn't find @nobody on X." });
+  assert.ok("error" in (await webTip({ fromX: "50", to: "bad handle!", amount: 1_000_000n, key: "key-aaaaaaaa" }, known)));
+  assert.ok("error" in (await webTip({ fromX: "50", to: "@x", amount: 6_000_000n, key: "key-aaaaaaaa" }, known))); // over the $5 ceiling
+  const r = await webTip({ fromX: "50", to: "@alice", amount: 1_000_000n, key: "key-bbbbbbbb" }, known);
+  assert.ok(!("error" in r)); // reached the engine (rejected there because the fake permission isn't active onchain)
+  assert.equal((await tipByTweet("web:50:key-bbbbbbbb"))!.to_x, "900");
+  const again = await webTip({ fromX: "50", to: "@alice", amount: 1_000_000n, key: "key-bbbbbbbb" }, known);
+  assert.ok(!("error" in again) && again.outcome.kind === "duplicate"); // double-click / retry
+});

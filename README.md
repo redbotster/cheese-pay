@@ -1,6 +1,6 @@
 # Cheese Pay 🧀
 
-Tip anyone on X: `@1clawAI tip @friend $1`. Deployed at https://cheese-pay.vercel.app. To serve it under `1claw.co/for-ai`, set `NEXT_PUBLIC_BASE_PATH=/for-ai` and rewrite that path to the app.
+Tip anyone on X, from the website: sign in with X, create a passkey wallet, type `@friend` and an amount. Deployed at https://cheese-pay.vercel.app. To serve it under `1claw.co/for-ai`, set `NEXT_PUBLIC_BASE_PATH=/for-ai` and rewrite that path to the app.
 
 - **Wallet:** self-custodial passkey smart wallet on Base (Base Account). Nobody else holds the key.
 - **Limits:** $1 per tip (checked in `lib/limits.ts`), $10 per day (enforced onchain by the user's signed spend permission).
@@ -14,3 +14,8 @@ Tip anyone on X: `@1clawAI tip @friend $1`. Deployed at https://cheese-pay.verce
 4. Optional: mount under another site with `NEXT_PUBLIC_BASE_PATH` plus a rewrite.
 
 `pnpm test` runs parser, limits and engine tests.
+
+## How tips work
+- **Web-first.** The website sends tips. X is only used to sign in (and one cached handle lookup per new recipient), which keeps X API costs near zero.
+- **Recipient has no wallet?** The tip waits 7 days and counts toward the sender's daily limit; nothing is debited. The sender gets a pre-filled tweet to tell them. The moment the recipient creates a wallet, waiting tips are sent.
+- **Optional mention trigger** (`pnpm watcher`): `@1clawAI tip @friend $1`. Quiet by default (replies only on problems). `REPLY_SUCCESS=1` replies on success, `NUDGES=1` posts invites. Every X post costs money, so both are off.

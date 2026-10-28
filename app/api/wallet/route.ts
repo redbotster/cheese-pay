@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { setWallet } from "@/lib/db";
+import { releasePending } from "@/lib/tip";
 import { CEIL_DAILY, CHAIN_ID, PERIOD_SECONDS, USDC } from "@/lib/config";
+
+export const maxDuration = 60;
 
 /** Saves the wallet + signed spend permission the browser got from the passkey wallet.
  *  The body is user-supplied, so every field that matters is checked against our own config. */
@@ -21,5 +24,6 @@ export async function POST(req: NextRequest) {
   if (Number(p.end) <= Date.now() / 1000) return bad("Permission already expired.");
   if (!/^0x[0-9a-fA-F]{40}$/.test(p.account)) return bad("Bad wallet address.");
   await setWallet(s.xId, p.account, JSON.stringify(sp), BigInt(p.allowance)); // a fresh signature resets the daily limit to what they just approved
+  after(() => releasePending(s.xId)); // anyone who tipped this person while they had no wallet gets paid now
   return NextResponse.json({ ok: true, wallet: p.account });
 }
