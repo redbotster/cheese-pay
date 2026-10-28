@@ -10,7 +10,7 @@ import { usd } from "../lib/limits.ts";
 
 const DRY = process.env.DRY === "1";
 const SITE = process.env.SITE_URL ?? "https://cheese-pay.vercel.app";
-const MAX_NUDGES_PER_RUN = 5; // cold @mentions are rate-limited on purpose
+const MAX_NUDGES_PER_DAY = Number(process.env.MAX_NUDGES_PER_DAY ?? 25); // each nudge is a paid post; cap the daily spend
 
 const log = (m: string) => console.log(`[${new Date().toISOString()}] [cheese-pay] ${m}`);
 const clean = (s: string) => s.replace(/[—–]/g, ",").replace(/!/g, ".");
@@ -36,9 +36,12 @@ async function fetchMentions(): Promise<Tw[]> {
 }
 
 async function tick() {
-  await expireOld();
+  const expired = DRY ? [] : await expireOld(); // tips nobody claimed in 7 days: tell the sender, nothing was charged
+  for (const t of expired) {
+    log(`expired tip ${t.id}`);
+    reply(t.tweet_id, `Your ${usd(BigInt(t.amount))} tip to @${t.to_handle} expired because they didn't join Cheese Pay within 7 days. Nothing was charged.`);
+  }
   const mentions = await fetchMentions();
-  let nudges = 0;
   for (const t of mentions.reverse()) { // API returns newest first; process oldest first
     if (!t.author) continue;
     const parsed = parseTip(t.text, BOT_HANDLE);
@@ -54,14 +57,16 @@ async function tick() {
     else if (out.kind === "rejected") reply(t.id, out.reason);
     else if (out.kind === "pending") {
       reply(t.id, `@${target.screen_name} doesn't have a Cheese Pay wallet yet, so your ${usd(parsed.amount)} is on hold for 7 days. Nothing is charged until they join.`);
-      if (nudges < MAX_NUDGES_PER_RUN && await shouldNudge(target.screen_name))
-        { nudges++; post(`Heads up @${target.screen_name}, someone wants to tip you ${usd(parsed.amount)} on X 🧀 Set up a free Cheese Pay wallet with Face ID or a fingerprint, no seed phrase, to claim it: ${SITE}`); }
+      const dayKey = `nudges:${new Date().toISOString().slice(0, 10)}`;
+      if (Number((await kvGet(dayKey)) ?? 0) < MAX_NUDGES_PER_DAY && await shouldNudge(target.screen_name))
+        { await kvSet(dayKey, String(Number((await kvGet(dayKey)) ?? 0) + 1)); post(`Heads up @${target.screen_name}, someone wants to tip you ${usd(parsed.amount)} on X 🧀 Set up a free Cheese Pay wallet with Face ID or a fingerprint, no seed phrase, to claim it: ${SITE}`); }
     }
   }
   if (DRY) return;
   for (const toX of await pendingRecipients()) { // anyone who has since created a wallet gets paid
     for (const { tip, outcome } of await releasePending(toX)) {
       log(`released tip ${tip.id}: ${outcome.kind}`);
+      if (outcome.kind === "rejected") reply(tip.tweet_id, `@${tip.to_handle} joined Cheese Pay, but your ${usd(BigInt(tip.amount))} tip couldn't go through: ${outcome.reason} Nothing was charged.`);
       if (outcome.kind === "sent") reply(tip.tweet_id, `@${tip.to_handle} just set up Cheese Pay, so your ${usd(BigInt(tip.amount))} tip landed 🧀 https://basescan.org/tx/${outcome.txHash}`);
     }
   }

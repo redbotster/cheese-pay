@@ -48,7 +48,13 @@ export const tipByTweet = (t: string) => one<Tip>(`SELECT * FROM tips WHERE twee
 export const setTip = (id: number, status: string, tx_hash?: string | null, reason?: string | null) =>
   run(`UPDATE tips SET status=?, tx_hash=COALESCE(?,tx_hash), reason=COALESCE(?,reason) WHERE id=?`, [status, tx_hash ?? null, reason ?? null, id]);
 export const pendingFor = (to_x: string) => all<Tip>(`SELECT * FROM tips WHERE to_x=? AND status='pending' AND expires_at > ?`, [to_x, Date.now()]);
-export const expireOld = () => run(`UPDATE tips SET status='expired' WHERE status='pending' AND expires_at <= ?`, [Date.now()]);
+/** Marks overdue pending tips expired and returns exactly the ones it expired, so each sender is told once. */
+export const expireOld = async () => {
+  const out: Tip[] = [];
+  for (const t of await all<Tip>(`SELECT * FROM tips WHERE status='pending' AND expires_at <= ?`, [Date.now()]))
+    if ((await run(`UPDATE tips SET status='expired' WHERE id=? AND status='pending'`, [t.id])) === 1) out.push(t);
+  return out;
+};
 
 /** Counts sent AND in-flight tips so two simultaneous tips cannot both slip under the cap. */
 export const sentLast24h = async (from_x: string) =>

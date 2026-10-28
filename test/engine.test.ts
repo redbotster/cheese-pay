@@ -28,3 +28,13 @@ test("daily limit can never exceed what the user signed onchain", async () => {
   assert.equal(limitsOf(u({ paused: 1 })).paused, true);
   assert.equal(limitsOf(u({})).maxTip, 1_000_000n); // default
 });
+
+test("an overdue pending tip is expired and reported exactly once", async () => {
+  const { claimTip, setTip, expireOld, tipByTweet: byTweet } = await import("../lib/db.ts");
+  await claimTip("t-old", "1", "77", "ghost", 1_000_000n, Date.now() - 1000); // already past its 7 days
+  await setTip((await byTweet("t-old"))!.id, "pending");
+  const first = await expireOld();
+  assert.deepEqual(first.map((t) => t.tweet_id), ["t-old"]);
+  assert.equal((await byTweet("t-old"))!.status, "expired");
+  assert.equal((await expireOld()).length, 0); // second run must not notify again
+});
