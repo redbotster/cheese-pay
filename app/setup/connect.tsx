@@ -34,8 +34,8 @@ export default function Connect({ spender }: { spender: string }) {
   return (<div className="card">
     <b>Create your wallet</b>
     <p>You will be asked for Face ID or a fingerprint twice: once to create the wallet, once to approve your daily limit. Start with $10 a day, or pick your own (up to $50). You can change it any time.</p>
-    <p>Daily limit $ <input type="number" min="1" max="50" step="1" value={day} onChange={(e) => setDay(Number(e.target.value))} style={{ width: 80, padding: 8, borderRadius: 8, border: "1px solid var(--line)", background: "transparent", color: "var(--fg)", font: "inherit" }} /></p>
+    <p>Daily limit $ <input type="number" min="1" max="50" step="1" value={day} onChange={(e) => setDay(Number(e.target.value))} style={{ width: 80 }} /></p>
     <button onClick={go} disabled={busy}>{busy ? "Waiting for you…" : "Create wallet with passkey"}</button>
-    {err && <p style={{ color: "var(--red)" }}>{err}</p>}
+    {err && <p className="err">{err}</p>}
   </div>);
 }

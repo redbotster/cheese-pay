@@ -36,12 +36,12 @@ export default function Limits(p: { wallet: string; spender: string; maxTip: num
 
   const num = (v: number, set: (n: number) => void, max: number) => (
     <input type="number" min="0.01" max={max} step="0.01" value={v} onChange={(e) => set(Number(e.target.value))}
-      style={{ width: 96, padding: 8, borderRadius: 8, border: "1px solid var(--line)", background: "transparent", color: "var(--fg)", font: "inherit" }} />);
+      style={{ width: 96 }} />);
 
   return (<div className="card">
     <b>Your limits</b>
     <p>Pick how much you are comfortable tipping. Lowering limits or pausing is instant. Raising the daily limit asks for your fingerprint again, because the blockchain enforces it.</p>
-    <p>{PRESETS.map((x) => <button key={x.name} style={{ marginRight: 8, background: "transparent", border: "1px solid var(--line)", color: "var(--fg)" }}
+    <p>{PRESETS.map((x) => <button key={x.name} className="ghost" style={{ marginRight: 8, marginBottom: 8 }}
       onClick={() => { setTip(x.tip); setDay(x.day); }} disabled={busy}>{x.name} (${x.tip}/tip, ${x.day}/day)</button>)}</p>
     <p>Max per tip $ {num(tip, setTip, 5)} &nbsp; Max per day $ {num(day, setDay, 50)}</p>
     <p><label><input type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} /> Pause all tipping</label></p>

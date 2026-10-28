@@ -18,7 +18,7 @@ export default async function Setup() {
   const waiting = await pendingFor(s.xId);
   const tips = await tipsFor(s.xId);
   return (<>
-    <h1>Your wallet 🧀</h1>
+    <h1>Your wallet</h1>
     <p>Signed in as @{s.handle}.</p>
     {waiting.length > 0 && !u?.wallet && <div className="card"><b>You have {waiting.length} tip{waiting.length > 1 ? "s" : ""} waiting.</b> Create your wallet below and {waiting.length > 1 ? "they land" : "it lands"} right away.</div>}
     {u?.wallet

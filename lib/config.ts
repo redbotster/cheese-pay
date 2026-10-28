@@ -8,4 +8,4 @@ export const CEIL_DAILY = 50_000_000n;
 export const PERIOD_DAYS = 1;
 export const PERIOD_SECONDS = 86_400;
 export const PENDING_TTL_MS = 7 * 86_400_000; // tips to people without a wallet wait this long
-export const BOT_HANDLE = "1clawAI";
+export const BOT_HANDLE = "cheesepayme";

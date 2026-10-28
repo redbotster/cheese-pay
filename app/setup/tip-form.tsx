@@ -19,12 +19,11 @@ export default function TipForm({ maxTip }: { maxTip: number }) {
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }
 
-  const input = { padding: 10, borderRadius: 8, border: "1px solid var(--line)", background: "transparent", color: "var(--fg)", font: "inherit" } as const;
   return (<div className="card">
     <b>Send a tip</b>
     <p>Tip anyone on X. They don't need a wallet yet.</p>
-    <p><input placeholder="@handle" value={to} onChange={(e) => setTo(e.target.value)} style={{ ...input, width: 180 }} />
-      {" "}$ <input type="number" min="0.01" max={maxTip} step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={{ ...input, width: 90 }} /></p>
+    <p><input placeholder="@handle" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 180 }} />
+      {" "}$ <input type="number" min="0.01" max={maxTip} step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={{ width: 90 }} /></p>
     <button onClick={send} disabled={busy || !to.trim() || !(amount > 0)}>{busy ? "Sending…" : "Send tip"}</button>
     {msg && <p>{msg}</p>}
     {share && <p><a className="btn" href={share} target="_blank" rel="noreferrer">Post on X to tell them</a></p>}

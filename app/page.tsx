@@ -1,16 +1,24 @@
 import { BASE } from "@/lib/base";
 import { getSession } from "@/lib/session";
+import { Wedge } from "./wedge";
 
 export default async function Home() {
   const s = await getSession();
   return (<>
-    <h1>Cheese Pay 🧀</h1>
-    <p>Tip anyone on X. Your wallet is protected by your face or fingerprint, with hard spending limits on every tip.</p>
+    <section className="hero">
+      <Wedge className="wedge" />
+      <div>
+        <h1>Tip anyone on X. Easy as cheese.</h1>
+        <p>Send a few dollars of USDC to a friend's X handle. Your wallet is locked with your face or fingerprint, and you set the limits.</p>
+        {s ? <a className="btn" href={`${BASE}/setup`}>Open my wallet</a> : <a className="btn" href={`${BASE}/api/auth/x/login`}>Sign in with X</a>}
+      </div>
+    </section>
     <div className="card"><b>How it works</b>
-      <ol><li>Sign in with X and create your wallet. It takes a minute and there is no seed phrase to lose.</li>
-      <li>Approve a spending limit: <b>$1 per tip and $10 per day to start</b>. You can change both any time, and the daily limit is enforced by the blockchain, not by us.</li>
-      <li>Type a friend's X handle and an amount. They get paid in USDC, and we help you let them know.</li></ol></div>
-    <p>If your friend has no wallet yet, we invite them and hold the tip for 7 days. Nothing leaves your wallet until they join.</p>
-    {s ? <a className="btn" href={`${BASE}/setup`}>Open my wallet</a> : <a className="btn" href={`${BASE}/api/auth/x/login`}>Sign in with X</a>}
+      <ol className="steps" style={{ marginTop: 14 }}>
+        <li><div>Sign in and make a wallet<br /><span>One minute, no seed phrase to lose.</span></div></li>
+        <li><div>Set your limits<br /><span><b>$1 per tip and $10 per day</b> to start. Change them any time.</span></div></li>
+        <li><div>Type a handle and an amount<br /><span>They get paid in USDC. If they're new, we hold the tip for 7 days.</span></div></li>
+      </ol>
+    </div>
   </>);
 }
