@@ -1,6 +1,6 @@
 # Cheese Pay 🧀
 
-Tip anyone on X, from the website: sign in with X, create a passkey wallet, type `@friend` and an amount. Deployed at https://cheese-pay.vercel.app. To serve it under `1claw.co/for-ai`, set `NEXT_PUBLIC_BASE_PATH=/for-ai` and rewrite that path to the app.
+Tip anyone on X, from the website: sign in with X, create a passkey wallet, type `@friend` and an amount. Deployed at https://cheesepay.me. To serve it under `1claw.co/for-ai`, set `NEXT_PUBLIC_BASE_PATH=/for-ai` and rewrite that path to the app.
 
 - **Wallet:** self-custodial passkey smart wallet on Base (Base Account). Nobody else holds the key.
 - **Limits:** $1 per tip (checked in `lib/limits.ts`), $10 per day (enforced onchain by the user's signed spend permission).

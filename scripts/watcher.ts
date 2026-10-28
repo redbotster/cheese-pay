@@ -9,7 +9,7 @@ import { expireOld, kvGet, kvSet, markSeen, pendingRecipients, shouldNudge } fro
 import { usd } from "../lib/limits.ts";
 
 const DRY = process.env.DRY === "1";
-const SITE = process.env.SITE_URL ?? "https://cheese-pay.vercel.app";
+const SITE = process.env.SITE_URL ?? "https://cheesepay.me";
 // Web-first: the website is the main way to tip. This watcher is an optional bonus trigger and stays quiet by default,
 // because every X post costs money. REPLY_SUCCESS=1 adds a reply on each success; NUDGES=1 lets it post invites to people without a wallet.
 const REPLY_SUCCESS = process.env.REPLY_SUCCESS === "1", NUDGES = process.env.NUDGES === "1";
