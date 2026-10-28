@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { BASE } from "@/lib/base";
 import { createBaseAccountSDK } from "@base-org/account";
 import { requestSpendPermission } from "@base-org/account/spend-permission/browser";
 
@@ -22,7 +23,7 @@ export default function Connect({ spender }: { spender: string }) {
         provider, account, spender, token: USDC, chainId: 8453,
         allowance: BigInt(Math.round(day * 100)) * 10_000n, periodInDays: 1, end: new Date(Date.now() + 365 * 86_400_000),
       });
-      const r = await fetch("/for-ai/api/wallet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission }) });
+      const r = await fetch(`${BASE}/api/wallet`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission }) });
       if (!r.ok) throw new Error((await r.json()).error ?? "Could not save your wallet.");
       location.reload();
     } catch (e) {

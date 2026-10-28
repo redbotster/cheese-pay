@@ -1,3 +1,4 @@
+import { BASE } from "@/lib/base";
 import { getSession } from "@/lib/session";
 
 export default async function Home() {
@@ -10,6 +11,6 @@ export default async function Home() {
       <li>Approve a spending limit: <b>$1 per tip and $10 per day to start</b>. You can change both any time, and the daily limit is enforced by the blockchain, not by us.</li>
       <li>Tweet <code>@1clawAI tip @friend $1</code>. They get paid in USDC.</li></ol></div>
     <p>If your friend has no wallet yet, we invite them and hold the tip for 7 days. Nothing leaves your wallet until they join.</p>
-    {s ? <a className="btn" href="/for-ai/setup">Open my wallet</a> : <a className="btn" href="/for-ai/api/auth/x/login">Sign in with X</a>}
+    {s ? <a className="btn" href={`${BASE}/setup`}>Open my wallet</a> : <a className="btn" href={`${BASE}/api/auth/x/login`}>Sign in with X</a>}
   </>);
 }

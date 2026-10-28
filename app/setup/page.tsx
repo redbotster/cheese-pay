@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BASE } from "@/lib/base";
 import { getSession } from "@/lib/session";
 import { tipsFor, userById } from "@/lib/db";
 import { usd } from "@/lib/limits";
@@ -24,6 +25,6 @@ export default async function Setup() {
     <h2>Activity</h2>
     {tips.length === 0 ? <p>No tips yet.</p> : <table><tbody>{tips.map((t) => (
       <tr key={t.id}><td>{t.from_x === s.xId ? `You to @${t.to_handle}` : "Received"}</td><td>{usd(BigInt(t.amount))}</td><td>{t.status}{t.reason ? `: ${t.reason}` : ""}</td></tr>))}</tbody></table>}
-    <p><a href="/for-ai">Home</a></p>
+    <p><a href={BASE || "/"}>Home</a></p>
   </>);
 }

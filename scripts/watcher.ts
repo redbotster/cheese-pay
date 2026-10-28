@@ -9,7 +9,7 @@ import { expireOld, kvGet, kvSet, markSeen, pendingRecipients, shouldNudge } fro
 import { usd } from "../lib/limits.ts";
 
 const DRY = process.env.DRY === "1";
-const SITE = "https://1claw.co/for-ai";
+const SITE = process.env.SITE_URL ?? "https://cheese-pay.vercel.app";
 const MAX_NUDGES_PER_RUN = 5; // cold @mentions are rate-limited on purpose
 
 const log = (m: string) => console.log(`[${new Date().toISOString()}] [cheese-pay] ${m}`);

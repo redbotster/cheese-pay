@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { BASE } from "@/lib/base";
 import { createBaseAccountSDK } from "@base-org/account";
 import { requestSpendPermission } from "@base-org/account/spend-permission/browser";
 
@@ -18,13 +19,13 @@ export default function Limits(p: { wallet: string; spender: string; maxTip: num
   async function save(next = { tip, day, paused }) {
     setBusy(true); setMsg("");
     try {
-      const post = () => fetch("/for-ai/api/limits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ maxTip: next.tip, dailyCap: next.day, paused: next.paused }) });
+      const post = () => fetch(`${BASE}/api/limits`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ maxTip: next.tip, dailyCap: next.day, paused: next.paused }) });
       let r = await post();
       if (r.status === 409) { // raising the daily limit: the blockchain limit is what they signed, so sign a new one
         const provider = createBaseAccountSDK({ appName: "Cheese Pay", appChainIds: [8453] }).getProvider();
         const permission = await requestSpendPermission({ provider, account: p.wallet, spender: p.spender, token: USDC, chainId: 8453,
           allowance: BigInt(Math.round(next.day * 100)) * 10_000n, periodInDays: 1, end: new Date(Date.now() + 365 * 86_400_000) });
-        const w = await fetch("/for-ai/api/wallet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission }) });
+        const w = await fetch(`${BASE}/api/wallet`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission }) });
         if (!w.ok) throw new Error((await w.json()).error);
         r = await post();
       }

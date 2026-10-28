@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BASE } from "@/lib/base";
 import { setSession } from "@/lib/session";
 import { upsertUser } from "@/lib/db";
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   const { data } = await me.json(); // we keep only id + handle; the access token is never stored
   await upsertUser(data.id, data.username);
   await setSession({ xId: data.id, handle: data.username.toLowerCase() });
-  const res = NextResponse.redirect(new URL("/for-ai/setup", process.env.APP_URL ?? new URL(process.env.X_REDIRECT_URI!).origin));
+  const res = NextResponse.redirect(new URL(`${BASE}/setup`, process.env.APP_URL ?? new URL(process.env.X_REDIRECT_URI!).origin));
   res.cookies.delete("cp_state"); res.cookies.delete("cp_verifier");
   return res;
 }
