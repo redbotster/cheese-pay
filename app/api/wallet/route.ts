@@ -20,6 +20,6 @@ export async function POST(req: NextRequest) {
   if (BigInt(p.allowance) > CEIL_DAILY || BigInt(p.allowance) <= 0n) return bad("Daily limit must be between $0.01 and $50.");
   if (Number(p.end) <= Date.now() / 1000) return bad("Permission already expired.");
   if (!/^0x[0-9a-fA-F]{40}$/.test(p.account)) return bad("Bad wallet address.");
-  setWallet(s.xId, p.account, JSON.stringify(sp), BigInt(p.allowance)); // a fresh signature resets the daily limit to what they just approved
+  await setWallet(s.xId, p.account, JSON.stringify(sp), BigInt(p.allowance)); // a fresh signature resets the daily limit to what they just approved
   return NextResponse.json({ ok: true, wallet: p.account });
 }

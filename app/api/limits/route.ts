@@ -12,7 +12,7 @@ const micro = (v: unknown) => {
 /** Lowering limits or pausing is instant. Raising the daily limit past what the user signed needs a new signature (409). */
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  const u = s && userById(s.xId);
+  const u = s && (await userById(s.xId));
   if (!s || !u) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
   if (!u.wallet) return NextResponse.json({ error: "Create your wallet first." }, { status: 400 });
   const b = await req.json();
@@ -25,6 +25,6 @@ export async function POST(req: NextRequest) {
   let signed = 0n;
   try { signed = BigInt(JSON.parse(u.permission!).permission.allowance); } catch { /* treated as nothing signed */ }
   if (dailyCap > signed) return NextResponse.json({ error: "reapprove", signed: signed.toString() }, { status: 409 });
-  setLimits(s.xId, maxTip, dailyCap, !!b.paused);
-  return NextResponse.json({ ok: true, ...Object.fromEntries(Object.entries(limitsOf(userById(s.xId))).map(([k, v]) => [k, String(v)])) });
+  await setLimits(s.xId, maxTip, dailyCap, !!b.paused);
+  return NextResponse.json({ ok: true, ...Object.fromEntries(Object.entries(limitsOf((await userById(s.xId))!)).map(([k, v]) => [k, String(v)])) });
 }

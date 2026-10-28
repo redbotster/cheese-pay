@@ -8,7 +8,7 @@ Tip anyone on X: `@1clawAI tip @friend $1`. Served at `1claw.co/for-ai`.
 - **No wallet yet?** The tip waits up to 7 days, nothing is debited, and the recipient gets one nudge post per week.
 
 ## Run
-1. `cp .env.example .env.local`, fill X creds (callback `X_REDIRECT_URI` must be registered in the X dev portal), `SESSION_SECRET`, `TWITTER_API_KEY`.
+1. `cp .env.example .env.local`, fill X creds (callback `X_REDIRECT_URI` must be registered in the X dev portal), `SESSION_SECRET`, `TWITTER_API_KEY` (optional now).
 2. `ONE_CLAW_API_KEY=... node --experimental-strip-types scripts/provision-spender.ts --apply`, then send ~$5 ETH on Base to the printed spender address (gas only).
 3. `pnpm dev` (web) and `pnpm watcher` (mentions). `DRY=1 pnpm watcher` parses without sending anything.
 4. Mount at 1claw.co/for-ai with a rewrite to this app (basePath is `/for-ai`).

@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
   const me = await fetch("https://api.x.com/2/users/me", { headers: { Authorization: `Bearer ${access_token}` } });
   if (!me.ok) return new NextResponse("Could not read your X profile.", { status: 502 });
   const { data } = await me.json(); // we keep only id + handle; the access token is never stored
-  upsertUser(data.id, data.username);
+  await upsertUser(data.id, data.username);
   await setSession({ xId: data.id, handle: data.username.toLowerCase() });
-  const res = NextResponse.redirect(new URL("/for-ai/setup", process.env.X_REDIRECT_URI!));
+  const res = NextResponse.redirect(new URL("/for-ai/setup", process.env.APP_URL ?? new URL(process.env.X_REDIRECT_URI!).origin));
   res.cookies.delete("cp_state"); res.cookies.delete("cp_verifier");
   return res;
 }

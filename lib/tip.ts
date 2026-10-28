@@ -47,47 +47,47 @@ async function send(from: User, toWallet: Address, amount: bigint): Promise<stri
 
 /** Handle one tip request. Safe to call twice for the same tweet: the second call is a no-op. */
 export async function handleTip(a: { tweetId: string; fromX: string; toX: string; toHandle: string; amount: bigint }): Promise<Outcome> {
-  const recipient = userById(a.toX);
-  const from = userById(a.fromX);
+  const recipient = await userById(a.toX);
+  const from = await userById(a.fromX);
   const pendingExpiry = recipient?.wallet ? null : Date.now() + PENDING_TTL_MS;
-  if (!claimTip(a.tweetId, a.fromX, a.toX, a.toHandle, a.amount, pendingExpiry)) return { kind: "duplicate" };
-  const tip = tipByTweet(a.tweetId)!;
-  const reject = (reason: string): Outcome => (setTip(tip.id, "rejected", null, reason), { kind: "rejected", reason });
+  if (!(await claimTip(a.tweetId, a.fromX, a.toX, a.toHandle, a.amount, pendingExpiry))) return { kind: "duplicate" };
+  const tip = (await tipByTweet(a.tweetId))!;
+  const reject = async (reason: string): Promise<Outcome> => (await setTip(tip.id, "rejected", null, reason), { kind: "rejected", reason });
 
   const verdict = checkTip({
-    amount: a.amount, sentLast24h: from ? sentLast24h(a.fromX) : 0n, selfTip: a.fromX === a.toX,
+    amount: a.amount, sentLast24h: from ? await sentLast24h(a.fromX) : 0n, selfTip: a.fromX === a.toX,
     hasWallet: !!from?.wallet, permissionActive: from ? await permissionActive(from, a.amount) : false, ...limitsOf(from),
   });
   if (!verdict.ok) return reject(verdict.reason);
-  if (!recipient?.wallet) { setTip(tip.id, "pending"); return { kind: "pending" }; } // no money moves until they have a wallet
+  if (!recipient?.wallet) { await setTip(tip.id, "pending"); return { kind: "pending" }; } // no money moves until they have a wallet
   return settle(tip, from!, recipient);
 }
 
 async function settle(tip: Tip, from: User, to: User): Promise<Outcome> {
-  setTip(tip.id, "sending"); // counted against the daily cap from this moment
+  await setTip(tip.id, "sending"); // counted against the daily cap from this moment
   try {
     const tx = await send(from, to.wallet as Address, BigInt(tip.amount));
-    setTip(tip.id, "sent", tx);
+    await setTip(tip.id, "sent", tx);
     return { kind: "sent", txHash: tx };
   } catch (e) {
-    setTip(tip.id, "failed", null, String((e as Error).message).slice(0, 200));
+    await setTip(tip.id, "failed", null, String((e as Error).message).slice(0, 200));
     return { kind: "rejected", reason: "The payment didn't go through. Nothing was charged." };
   }
 }
 
 /** Called after a recipient creates a wallet: send everything that was waiting for them. Re-checks limits at send time. */
 export async function releasePending(toX: string): Promise<Array<{ tip: Tip; outcome: Outcome }>> {
-  const to = userById(toX);
+  const to = await userById(toX);
   const out: Array<{ tip: Tip; outcome: Outcome }> = [];
   if (!to?.wallet) return out;
-  for (const tip of pendingFor(toX)) {
-    const from = userById(tip.from_x);
+  for (const tip of await pendingFor(toX)) {
+    const from = await userById(tip.from_x);
     const amount = BigInt(tip.amount);
     const v = checkTip({
-      amount, sentLast24h: sentLast24h(tip.from_x), selfTip: false,
+      amount, sentLast24h: await sentLast24h(tip.from_x), selfTip: false,
       hasWallet: !!from?.wallet, permissionActive: from ? await permissionActive(from, amount) : false, ...limitsOf(from),
     });
-    if (!v.ok) { setTip(tip.id, "rejected", null, v.reason); out.push({ tip, outcome: { kind: "rejected", reason: v.reason } }); continue; }
+    if (!v.ok) { await setTip(tip.id, "rejected", null, v.reason); out.push({ tip, outcome: { kind: "rejected", reason: v.reason } }); continue; }
     out.push({ tip, outcome: await settle(tip, from!, to) });
   }
   return out;

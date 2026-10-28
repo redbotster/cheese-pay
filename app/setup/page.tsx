@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export default async function Setup() {
   const s = await getSession();
   if (!s) redirect("/");
-  const u = userById(s.xId);
-  const tips = tipsFor(s.xId);
+  const u = await userById(s.xId);
+  const tips = await tipsFor(s.xId);
   return (<>
     <h1>Your wallet 🧀</h1>
     <p>Signed in as @{s.handle}.</p>
