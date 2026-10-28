@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { guard, json } from "@/lib/api";
 import { getSession } from "@/lib/session";
+import { memberById } from "@/lib/db";
 import { webTip } from "@/lib/webtip";
 import { usd } from "@/lib/limits";
-import { allow, sameOrigin } from "@/lib/security";
+import { allow } from "@/lib/security";
 
-export const maxDuration = 60; // an onchain send waits for confirmations
+export const maxDuration = 60; // an onchain send waits for confirmation
 
 const micro = (v: unknown) => {
   const n = Number(v);
@@ -12,21 +14,22 @@ const micro = (v: unknown) => {
 };
 
 export async function POST(req: NextRequest) {
-  if (!sameOrigin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const no = await guard(req, "tip", 30, 60); if (no) return no;
   const s = await getSession();
-  if (!s) return NextResponse.json({ error: "Sign in with X first." }, { status: 401 });
-  if (!(await allow(`tip:${s.xId}`, 12, 60)) || !(await allow(`tipday:${s.xId}`, 300, 86400)))
-    return NextResponse.json({ error: "Slow down a little and try again." }, { status: 429 });
+  if (!s) return json({ error: "Sign in first." }, 401);
+  if (!(await allow(`tip:${s.uid}`, 12, 60)) || !(await allow(`tipday:${s.uid}`, 300, 86400))) return json({ error: "Slow down a little and try again." }, 429);
+  const from = await memberById(s.uid);
+  if (!from) return json({ error: "Sign in first." }, 401);
   const b = await req.json().catch(() => ({}));
   const amount = micro(b.amount);
-  const r = await webTip({ fromX: s.xId, to: String(b.to ?? ""), amount, key: String(b.key ?? "") });
-  if ("error" in r) return NextResponse.json({ error: r.error }, { status: 400 });
+  const r = await webTip({ from, to: String(b.to ?? ""), amount, key: String(b.key ?? "") });
+  if ("error" in r) return json({ error: r.error }, 400);
   const o = r.outcome;
-  if (o.kind === "rejected") return NextResponse.json({ status: "rejected", error: o.reason }, { status: 422 });
-  if (o.kind === "duplicate") return NextResponse.json({ status: "duplicate" });
+  if (o.kind === "rejected") return json({ status: "rejected", error: o.reason }, 422);
+  if (o.kind === "duplicate") return json({ status: "duplicate" });
   const base = process.env.APP_URL ?? new URL(req.url).origin;
   const text = o.kind === "sent"
     ? `@${r.toHandle} I just sent you ${usd(amount)} on Cheese Pay 🧀 ${base}`
-    : `@${r.toHandle} I'm sending you ${usd(amount)} on Cheese Pay 🧀 Sign in with X to claim it: ${base}`;
-  return NextResponse.json({ status: o.kind, toHandle: r.toHandle, txHash: o.kind === "sent" ? o.txHash : undefined, shareUrl: `https://x.com/intent/post?text=${encodeURIComponent(text)}` });
+    : `@${r.toHandle} I sent you ${usd(amount)} on Cheese Pay 🧀 Make a wallet within 7 days to claim it: ${base}`;
+  return json({ status: o.kind, toHandle: r.toHandle, txHash: o.kind === "sent" ? o.txHash : undefined, shareUrl: `https://x.com/intent/post?text=${encodeURIComponent(text)}` });
 }

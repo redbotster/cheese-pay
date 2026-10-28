@@ -1,51 +1,38 @@
 "use client";
 import { useState } from "react";
-import { BASE } from "@/lib/base";
-import { createBaseAccountSDK } from "@base-org/account";
-import { requestSpendPermission } from "@base-org/account/spend-permission/browser";
+import { post, signAndExecute, explain } from "@/lib/webauthn";
 
-const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const PRESETS = [
-  { name: "Cautious", tip: 0.5, day: 5 },
-  { name: "Default", tip: 1, day: 10 },
-  { name: "Generous", tip: 5, day: 50 },
-];
+const PRESETS = [{ name: "Cautious", tip: 0.5, day: 5 }, { name: "Default", tip: 1, day: 10 }, { name: "Generous", tip: 5, day: 50 }];
 
-export default function Limits(p: { wallet: string; spender: string; maxTip: number; dailyCap: number; paused: boolean }) {
+export default function Limits(p: { maxTip: number; dailyCap: number; granted: number; paused: boolean }) {
   const [tip, setTip] = useState(p.maxTip), [day, setDay] = useState(p.dailyCap), [paused, setPaused] = useState(p.paused);
   const [msg, setMsg] = useState(""), [busy, setBusy] = useState(false);
   const dirty = tip !== p.maxTip || day !== p.dailyCap || paused !== p.paused;
 
-  async function save(next = { tip, day, paused }) {
+  async function save() {
     setBusy(true); setMsg("");
     try {
-      const post = () => fetch(`${BASE}/api/limits`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ maxTip: next.tip, dailyCap: next.day, paused: next.paused }) });
-      let r = await post();
-      if (r.status === 409) { // raising the daily limit: the blockchain limit is what they signed, so sign a new one
-        const provider = createBaseAccountSDK({ appName: "Cheese Pay", appChainIds: [8453] }).getProvider();
-        const permission = await requestSpendPermission({ provider, account: p.wallet, spender: p.spender, token: USDC, chainId: 8453,
-          allowance: BigInt(Math.round(next.day * 100)) * 10_000n, periodInDays: 1, end: new Date(Date.now() + 365 * 86_400_000) });
-        const w = await fetch(`${BASE}/api/wallet`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permission }) });
-        if (!w.ok) throw new Error((await w.json()).error);
-        r = await post();
-      }
-      if (!r.ok) throw new Error((await r.json()).error ?? "Could not save.");
+      if (day > p.granted) await signAndExecute("/api/wallet/grant", { daily: day }); // raising: the onchain allowance must be re-signed
+      const r = await post("/api/limits", { maxTip: tip, dailyCap: day, paused });
+      if (!r.ok) throw new Error(r.error === "reapprove" ? "Approve the higher limit with your passkey first." : r.error);
       setMsg("Saved."); setTimeout(() => location.reload(), 600);
-    } catch (e) { setMsg((e as Error).message || "Nothing was changed."); } finally { setBusy(false); }
+    } catch (e) { setMsg(explain(e)); } finally { setBusy(false); }
   }
-
-  const num = (v: number, set: (n: number) => void, max: number) => (
-    <input type="number" min="0.01" max={max} step="0.01" value={v} onChange={(e) => set(Number(e.target.value))}
-      style={{ width: 96 }} />);
+  async function removeAgent() {
+    if (!confirm("Remove Cheese Pay's permission to send from your wallet? You can approve it again later.")) return;
+    setBusy(true); setMsg("");
+    try { await signAndExecute("/api/wallet/revoke", {}); location.reload(); } catch (e) { setMsg(explain(e)); } finally { setBusy(false); }
+  }
 
   return (<div className="card">
     <b>Your limits</b>
-    <p>Pick how much you are comfortable tipping. Lowering limits or pausing is instant. Raising the daily limit asks for your fingerprint again, because the blockchain enforces it.</p>
-    <p>{PRESETS.map((x) => <button key={x.name} className="ghost" style={{ marginRight: 8, marginBottom: 8 }}
-      onClick={() => { setTip(x.tip); setDay(x.day); }} disabled={busy}>{x.name} (${x.tip}/tip, ${x.day}/day)</button>)}</p>
-    <p>Max per tip $ {num(tip, setTip, 5)} &nbsp; Max per day $ {num(day, setDay, 50)}</p>
+    <p>Lowering a limit or pausing is instant. Raising the daily limit asks for your passkey, because the blockchain enforces it. Onchain limit now: ${p.granted.toFixed(2)} a day.</p>
+    <p>{PRESETS.map((x) => <button key={x.name} className="ghost" style={{ marginRight: 8, marginBottom: 8 }} onClick={() => { setTip(x.tip); setDay(x.day); }} disabled={busy}>{x.name} (${x.tip}/tip, ${x.day}/day)</button>)}</p>
+    <p>Max per tip $ <input type="number" min="0.01" max={5} step="0.01" value={tip} onChange={(e) => setTip(Number(e.target.value))} style={{ width: 96 }} />{" "}
+      &nbsp; Max per day $ <input type="number" min="1" max={50} step="1" value={day} onChange={(e) => setDay(Number(e.target.value))} style={{ width: 96 }} /></p>
     <p><label><input type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} /> Pause all tipping</label></p>
-    <button onClick={() => save()} disabled={busy || !dirty}>{busy ? "Saving…" : "Save limits"}</button>
-    {msg && <p>{msg}</p>}
+    <button onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save limits"}</button>{" "}
+    <button className="ghost" onClick={removeAgent} disabled={busy}>Remove Cheese Pay's permission</button>
+    {msg && <p className={msg === "Saved." ? "okk" : "err"}>{msg}</p>}
   </div>);
 }

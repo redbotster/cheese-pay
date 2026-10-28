@@ -7,16 +7,13 @@ import { createClient } from "@1claw/sdk";
 import { appendFileSync } from "node:fs";
 import { USDC } from "../lib/config.ts";
 
-const SPEND_PERMISSION_MANAGER = "0xf85210B21cC50302F477BA56686d2019dC9b67Ad"; // Base Account spend permissions contract
-
-// The spender may only talk to the spend-permission contract and USDC, on Base, and never move ETH.
-// The $10/day USDC cap lives onchain in each user's permission; the $1/tip cap is checked in lib/limits.ts.
+// The agent spends from users' passkey Safes under their Allowance Module grants (the onchain daily cap) and pays out escrow.
+// Recipients are arbitrary Safes, so there is no destination allowlist; instead: Base only, USDC only, zero ETH value, a daily count.
 export const AGENT = {
   name: "cheese-pay-spender",
-  description: "Executes Cheese Pay tips from users' signed spend permissions. No custody of funds.",
+  description: "Sends Cheese Pay tips from users' passkey Safes under their onchain grants, and holds tips for new users.",
   intents_api_enabled: true,
   tx_allowed_chains: ["base"],
-  tx_to_allowlist: [SPEND_PERMISSION_MANAGER, USDC],
   tx_max_value: "0", // zero ETH value on every transaction
   tx_token_allowlist: [USDC],
   tx_known_tokens_only: true,
@@ -28,7 +25,14 @@ console.log("Plan:", JSON.stringify(AGENT, null, 2));
 if (!apply) { console.log("\nDry run. Re-run with --apply to create it."); process.exit(0); }
 
 const client = createClient({ baseUrl: process.env.ONECLAW_API_BASE ?? "https://api.1claw.xyz", apiKey: process.env.ONE_CLAW_API_KEY });
-const created = await client.agents.create({ ...AGENT, tx_allowed_chains: [...AGENT.tx_allowed_chains], tx_to_allowlist: [...AGENT.tx_to_allowlist], tx_token_allowlist: [...AGENT.tx_token_allowlist] });
+if (process.argv.includes("--update")) { // apply the guardrails above to the existing agent
+  const id = process.env.ONECLAW_SPENDER_AGENT_ID!;
+  const r = await client.agents.update(id, { tx_allowed_chains: [...AGENT.tx_allowed_chains], tx_to_allowlist: [], tx_max_value: AGENT.tx_max_value,
+    tx_token_allowlist: [...AGENT.tx_token_allowlist], tx_known_tokens_only: true, tx_max_per_day: AGENT.tx_max_per_day } as never);
+  console.log(r.error ? `update failed: ${r.error.message}` : `updated agent ${id}`);
+  process.exit(r.error ? 1 : 0);
+}
+const created = await client.agents.create({ ...AGENT, tx_allowed_chains: [...AGENT.tx_allowed_chains], tx_token_allowlist: [...AGENT.tx_token_allowlist] });
 if (!created.data) throw new Error(`create agent failed: ${created.error?.message}`);
 const { agent, api_key } = created.data;
 const key = await client.signingKeys.create(agent.id, { chain: "base" });

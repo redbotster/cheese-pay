@@ -2,12 +2,20 @@ import type { ReactNode } from "react";
 import { Fredoka, Inter } from "next/font/google";
 import { Wedge } from "./wedge";
 import Logout from "./logout";
+import SwRegister from "./sw-register";
 import { getSession } from "@/lib/session";
+import { memberById } from "@/lib/db";
 
 const display = Fredoka({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display" });
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 
-export const metadata = { title: "Cheese Pay", description: "Tip anyone on X in USDC. Passkey wallet, hard limits you control." };
+export const metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "https://cheesepay.me"),
+  title: "Cheese Pay",
+  description: "Tip anyone on X in USDC. Passkey wallet, hard limits you control.",
+  openGraph: { title: "Cheese Pay", description: "Tip anyone on X. Easy as cheese.", url: "/", siteName: "Cheese Pay", type: "website" },
+  twitter: { card: "summary_large_image", site: "@cheesepayme", title: "Cheese Pay", description: "Tip anyone on X. Easy as cheese." },
+};
 
 const css = `
 :root{--bg:#FFF7DB;--card:#FFFFFF;--fg:#2B1D06;--mute:#6B5A33;--line:#F1DFA0;--cheese:#FFC72C;--cheese-deep:#E8A200;--cheese-soft:#FFE9A3;--hole:rgba(232,162,0,.13);--red:#C62828;--ok:#2E7D32}
@@ -51,19 +59,38 @@ input:focus{outline:3px solid var(--cheese);border-color:var(--cheese-deep)}
 code{background:var(--cheese-soft);padding:2px 8px;border-radius:8px;color:var(--fg);font-size:.9em}
 table{width:100%;border-collapse:collapse}td{padding:10px 4px;border-bottom:1px dashed var(--line);color:var(--mute);font-size:.92rem}
 .err{color:var(--red)}.okk{color:var(--ok)}
+.pill{display:inline-block;background:var(--cheese-soft);color:var(--fg);border:2px solid var(--line);border-radius:999px;padding:2px 12px;font:600 .8rem var(--font-body);margin-bottom:10px}
+.preview{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:18px 20px;margin:6px 0 22px;box-shadow:0 6px 0 var(--line);transform:rotate(-1.2deg)}
+.preview .row{display:flex;align-items:center;gap:12px;font:600 1.15rem var(--font-display)}
+.preview .who{background:var(--cheese-soft);padding:4px 12px;border-radius:12px}
+.preview .arrow{color:var(--mute)}
+.preview .amt{margin-left:auto;font-size:1.5rem}
+.preview .sub{font:500 .92rem var(--font-body);color:var(--mute);margin-top:10px}
+.preview .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);display:inline-block}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid .card{margin:0}
+.feature b{font-family:var(--font-display);font-size:1.08rem}
+.feature p{margin:6px 0 0;font-size:.95rem}
+.note{background:var(--cheese-soft)}
+@media (max-width:640px){.grid{grid-template-columns:1fr}.preview{transform:none}.preview .row{font-size:1rem;flex-wrap:wrap}}
+.powered a{display:inline-flex;gap:6px;align-items:center;color:var(--mute);font-weight:500;text-decoration:none;border:2px solid var(--line);border-radius:999px;padding:4px 14px;background:var(--card)}
+.powered b{color:var(--fg)}
+main{padding-bottom:max(56px,env(safe-area-inset-bottom))}
 footer{margin-top:48px;font-size:.85rem;text-align:center}
 @media (max-width:520px){.hero{justify-content:center;text-align:center}.hero .wedge{width:120px}}`;
 
 export default async function Root({ children }: { children: ReactNode }) {
   const s = await getSession();
+  const m = s ? await memberById(s.uid) : undefined;
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <head><meta name="viewport" content="width=device-width, initial-scale=1" /><style dangerouslySetInnerHTML={{ __html: css }} /></head>
+      <head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><meta name="theme-color" content="#FFC72C" /><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="default" /><meta name="apple-mobile-web-app-title" content="Cheese Pay" /><style dangerouslySetInnerHTML={{ __html: css }} /></head>
       <body>
         <main>
-          <nav className="top"><a href="/"><Wedge />Cheese Pay</a>{s && <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: ".95rem" }}>@{s.handle} <Logout /></span>}</nav>
+          <nav className="top"><a href="/"><Wedge />Cheese Pay</a>{s && <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", fontFamily: "var(--font-body)", fontWeight: 500, fontSize: ".95rem" }}>{m?.handle ? `@${m.handle}` : m?.email} <Logout /></span>}</nav>
           {children}
-          <footer><p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
+          <footer><p className="powered"><a href="https://1claw.co" target="_blank" rel="noreferrer">Powered by <b>1Claw</b></a></p><p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
+          <SwRegister />
         </main>
       </body>
     </html>

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { randomBytes, createHash } from "node:crypto";
 import { allow, clientIp } from "@/lib/security";
+import { getSession } from "@/lib/session";
 
+/** Links an X account to the signed-in 1Claw member. X is identity for tips, not a way to sign in. */
 export async function GET(req: Request) {
-  if (!(await allow(`login:${clientIp(req)}`, 20, 60))) return new NextResponse("Too many attempts. Try again in a minute.", { status: 429 });
+  if (!(await allow(`xlink:${clientIp(req)}`, 20, 60))) return new NextResponse("Too many attempts. Try again in a minute.", { status: 429 });
+  if (!(await getSession())) return NextResponse.redirect(new URL("/login", req.url));
   const state = randomBytes(16).toString("hex");
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");

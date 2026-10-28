@@ -1,7 +1,7 @@
 import { createClient, type Client } from "@libsql/client";
 
 export type User = { x_id: string; handle: string; wallet: string | null; permission: string | null; created_at: number; max_tip: string | null; daily_cap: string | null; paused: number };
-export type Tip = { id: number; tweet_id: string; from_x: string; to_x: string; to_handle: string; amount: string; status: string; tx_hash: string | null; reason: string | null; created_at: number; expires_at: number | null };
+export type Tip = { mode?: string | null; release_tx?: string | null; id: number; tweet_id: string; from_x: string; to_x: string; to_handle: string; amount: string; status: string; tx_hash: string | null; reason: string | null; created_at: number; expires_at: number | null };
 
 let ready: Promise<Client> | undefined;
 /** Turso in production (TURSO_DATABASE_URL), a local file in dev. Opened on first use so `next build` never touches it. */
@@ -16,11 +16,14 @@ function db(): Promise<Client> {
       `CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS seen (tweet_id TEXT PRIMARY KEY)`,
       `CREATE TABLE IF NOT EXISTS handles (handle TEXT PRIMARY KEY, x_id TEXT NOT NULL, at INTEGER NOT NULL)`,
-      `CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, x_id TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)`,
-      `CREATE INDEX IF NOT EXISTS sessions_x ON sessions(x_id)`,
+      `CREATE TABLE IF NOT EXISTS members (uid TEXT PRIMARY KEY, email TEXT NOT NULL, x_id TEXT UNIQUE, handle TEXT, safe_id TEXT, safe_address TEXT,
+        grant_id TEXT, grant_amount TEXT, grant_status TEXT, max_tip TEXT, daily_cap TEXT, paused INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS user_sessions (sid TEXT PRIMARY KEY, uid TEXT NOT NULL, token_enc TEXT, token_exp INTEGER, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0)`,
+      `CREATE INDEX IF NOT EXISTS user_sessions_uid ON user_sessions(uid)`,
       `CREATE TABLE IF NOT EXISTS ratelimit (k TEXT NOT NULL, w INTEGER NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (k, w))`,
       `CREATE TABLE IF NOT EXISTS nudges (handle TEXT PRIMARY KEY, last_at INTEGER NOT NULL)`,
     ]);
+    for (const col of ["mode TEXT", "release_tx TEXT"]) { try { await c.execute(`ALTER TABLE tips ADD COLUMN ${col}`); } catch { /* already there */ } }
     return c;
   })());
 }
@@ -35,19 +38,33 @@ async function one<T>(sql: string, args: (string | number | null)[] = []): Promi
   return (await all<T>(sql, args))[0];
 }
 
-export const upsertUser = (x_id: string, handle: string) =>
-  run(`INSERT INTO users (x_id, handle, created_at) VALUES (?,?,?) ON CONFLICT(x_id) DO UPDATE SET handle=excluded.handle`, [x_id, handle.toLowerCase(), Date.now()]);
-export const userById = (x: string) => one<User>(`SELECT * FROM users WHERE x_id=?`, [x]);
-export const userByHandle = (h: string) => one<User>(`SELECT * FROM users WHERE handle=?`, [h.toLowerCase()]);
-export const setWallet = (x: string, wallet: string, permission: string, dailyCap?: bigint) =>
-  run(`UPDATE users SET wallet=?, permission=?, daily_cap=COALESCE(?, daily_cap) WHERE x_id=?`, [wallet, permission, dailyCap?.toString() ?? null, x]);
-export const setLimits = (x: string, maxTip: bigint, dailyCap: bigint, paused: boolean) =>
-  run(`UPDATE users SET max_tip=?, daily_cap=?, paused=? WHERE x_id=?`, [maxTip.toString(), dailyCap.toString(), paused ? 1 : 0, x]);
+export type Member = { uid: string; email: string; x_id: string | null; handle: string | null; safe_id: string | null; safe_address: string | null;
+  grant_id: string | null; grant_amount: string | null; grant_status: string | null; max_tip: string | null; daily_cap: string | null; paused: number; created_at: number };
+
+export const upsertMember = (uid: string, email: string) =>
+  run(`INSERT INTO members (uid, email, created_at) VALUES (?,?,?) ON CONFLICT(uid) DO UPDATE SET email=excluded.email`, [uid, email.toLowerCase(), Date.now()]);
+export const memberById = (uid: string) => one<Member>(`SELECT * FROM members WHERE uid=?`, [uid]);
+export const memberByX = (x: string) => one<Member>(`SELECT * FROM members WHERE x_id=?`, [x]);
+/** Returns false if that X account is already linked to someone else. */
+export const linkX = async (uid: string, x_id: string, handle: string) => {
+  const other = await memberByX(x_id);
+  if (other && other.uid !== uid) return false;
+  await run(`UPDATE members SET x_id=?, handle=? WHERE uid=?`, [x_id, handle.toLowerCase(), uid]);
+  return true;
+};
+export const setSafe = (uid: string, safe_id: string, safe_address: string) => run(`UPDATE members SET safe_id=?, safe_address=? WHERE uid=?`, [safe_id, safe_address, uid]);
+export const setGrant = (uid: string, grant_id: string | null, amount: bigint | null, status: string | null) =>
+  run(`UPDATE members SET grant_id=?, grant_amount=?, grant_status=? WHERE uid=?`, [grant_id, amount?.toString() ?? null, status, uid]);
+export const setLimits = (uid: string, maxTip: bigint, dailyCap: bigint, paused: boolean) =>
+  run(`UPDATE members SET max_tip=?, daily_cap=?, paused=? WHERE uid=?`, [maxTip.toString(), dailyCap.toString(), paused ? 1 : 0, uid]);
 
 /** Idempotent on tweet_id: returns false if this tweet was already handled. */
 export const claimTip = async (tweet_id: string, from_x: string, to_x: string, to_handle: string, amount: bigint, expires_at: number | null) =>
   (await run(`INSERT OR IGNORE INTO tips (tweet_id, from_x, to_x, to_handle, amount, status, created_at, expires_at) VALUES (?,?,?,?,?, 'new', ?, ?)`,
     [tweet_id, from_x, to_x, to_handle.toLowerCase(), amount.toString(), Date.now(), expires_at])) === 1;
+export const setTipRelease = (id: number, status: string, tx: string | null, reason?: string | null) =>
+  run(`UPDATE tips SET status=?, release_tx=COALESCE(?,release_tx), reason=COALESCE(?,reason) WHERE id=?`, [status, tx, reason ?? null, id]);
+export const setTipMode = (id: number, mode: string) => run(`UPDATE tips SET mode=? WHERE id=?`, [mode, id]);
 export const tipByTweet = (t: string) => one<Tip>(`SELECT * FROM tips WHERE tweet_id=?`, [t]);
 export const setTip = (id: number, status: string, tx_hash?: string | null, reason?: string | null) =>
   run(`UPDATE tips SET status=?, tx_hash=COALESCE(?,tx_hash), reason=COALESCE(?,reason) WHERE id=?`, [status, tx_hash ?? null, reason ?? null, id]);
@@ -83,13 +100,13 @@ export const cacheHandle = (handle: string, x_id: string) =>
   run(`INSERT INTO handles (handle,x_id,at) VALUES (?,?,?) ON CONFLICT(handle) DO UPDATE SET x_id=excluded.x_id, at=excluded.at`, [handle.toLowerCase(), x_id, Date.now()]);
 
 // ---- sessions: a signed cookie alone is not enough, the session must also exist here and not be revoked
-export const createSession = (sid: string, x_id: string, expires_at: number) =>
-  run(`INSERT INTO sessions (sid, x_id, created_at, expires_at) VALUES (?,?,?,?)`, [sid, x_id, Date.now(), expires_at]);
-export const sessionValid = async (sid: string) =>
-  !!(await one<{ sid: string }>(`SELECT sid FROM sessions WHERE sid=? AND revoked=0 AND expires_at > ?`, [sid, Date.now()]));
-export const revokeSession = (sid: string) => run(`UPDATE sessions SET revoked=1 WHERE sid=?`, [sid]);
-export const revokeAllSessions = (x_id: string) => run(`UPDATE sessions SET revoked=1 WHERE x_id=? AND revoked=0`, [x_id]);
-export const pruneSessions = () => run(`DELETE FROM sessions WHERE expires_at < ?`, [Date.now() - 86_400_000]);
+export const createSession = (sid: string, uid: string, expires_at: number, token_enc: string | null = null, token_exp: number | null = null) =>
+  run(`INSERT INTO user_sessions (sid, uid, token_enc, token_exp, created_at, expires_at) VALUES (?,?,?,?,?,?)`, [sid, uid, token_enc, token_exp, Date.now(), expires_at]);
+export const sessionRow = (sid: string) =>
+  one<{ uid: string; token_enc: string | null; token_exp: number | null }>(`SELECT uid, token_enc, token_exp FROM user_sessions WHERE sid=? AND revoked=0 AND expires_at > ?`, [sid, Date.now()]);
+export const sessionValid = async (sid: string) => !!(await sessionRow(sid));
+export const revokeSession = (sid: string) => run(`UPDATE user_sessions SET revoked=1, token_enc=NULL WHERE sid=?`, [sid]);
+export const revokeAllSessions = (uid: string) => run(`UPDATE user_sessions SET revoked=1, token_enc=NULL WHERE uid=? AND revoked=0`, [uid]);
 
 /** Fixed-window counter. Returns how many hits this key has had in the current window, including this one. */
 export const hit = async (key: string, windowSec: number) => {
@@ -98,3 +115,9 @@ export const hit = async (key: string, windowSec: number) => {
   if (Math.random() < 0.01) await run(`DELETE FROM ratelimit WHERE w < ?`, [w - 2]); // cheap housekeeping
   return Number(r?.n ?? 1);
 };
+
+export const escrowedExpired = () => all<Tip>(`SELECT * FROM tips WHERE status='pending' AND mode='escrow' AND expires_at <= ?`, [Date.now()]);
+export const pendingEscrowFor = (to_x: string) => all<Tip>(`SELECT * FROM tips WHERE to_x=? AND status='pending' AND mode='escrow' AND expires_at > ?`, [to_x, Date.now()]);
+export const pruneSessions = () => run(`DELETE FROM user_sessions WHERE expires_at < ?`, [Date.now() - 86_400_000]);
+/** Test helper: pretend a pending tip's 7 days are up. */
+export const forceExpire = (id: number) => run(`UPDATE tips SET expires_at=? WHERE id=?`, [Date.now() - 1000, id]);

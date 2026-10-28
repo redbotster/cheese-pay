@@ -14,7 +14,7 @@ export default function TipForm({ maxTip }: { maxTip: number }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Something went wrong. Nothing was charged.");
       setMsg(j.status === "sent" ? `Sent $${amount.toFixed(2)} to @${j.toHandle}.`
-        : `@${j.toHandle} isn't on Cheese Pay yet. Your $${amount.toFixed(2)} is on hold for 7 days and nothing is charged until they join. Tell them:`);
+        : `@${j.toHandle} isn't on Cheese Pay yet. Your $${amount.toFixed(2)} is held safely for 7 days, and comes back to you if they don't join. Tell them:`);
       setShare(j.shareUrl);
     } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
   }

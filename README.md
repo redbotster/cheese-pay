@@ -1,21 +1,22 @@
 # Cheese Pay 🧀
 
-Tip anyone on X, from the website: sign in with X, create a passkey wallet, type `@friend` and an amount. Deployed at https://cheesepay.me. To serve it under `1claw.co/for-ai`, set `NEXT_PUBLIC_BASE_PATH=/for-ai` and rewrite that path to the app.
+Tip anyone on X in USDC on Base. Powered by 1Claw. Live at https://cheesepay.me.
 
-- **Wallet:** self-custodial passkey smart wallet on Base (Base Account). Nobody else holds the key.
-- **Limits:** $1 per tip (checked in `lib/limits.ts`), $10 per day (enforced onchain by the user's signed spend permission).
-- **Spender:** a 1Claw agent. 1Claw holds its key and enforces guardrails: Base only, only the spend-permission contract and USDC, zero ETH value, daily transaction cap. It never holds user USDC.
-- **No wallet yet?** The tip waits up to 7 days, nothing is debited, and the recipient gets one nudge post per week.
+## How it works
+- **Sign in** with your email through 1Claw (one-time code). Your 1Claw token is sealed with AES-256-GCM on the server and never reaches the browser.
+- **Wallet:** a 1Claw passkey Safe on Base. Its only owner is your passkey (Safe's WebAuthn signer). Nobody else holds a key.
+- **Daily limit:** you sign a Safe Allowance Module grant for the Cheese Pay agent. The cap is enforced onchain; the agent also runs under 1Claw guardrails (Base only, USDC only, zero ETH value, daily transaction cap).
+- **Per-tip limit and pause** are enforced by the app before anything is sent. Lowering limits is instant; raising the daily limit needs your passkey.
+- **Recipient without a wallet:** the tip moves to escrow (the agent's key) and is paid out when they join, or refunded after 7 days by a daily cron.
+- **X** is linked for identity only (who you are on X, who you are tipping). X is never a way to sign in.
+
+## Security
+Revocable server-side sessions (`__Host-` cookie), log out everywhere, same-origin checks on every write, rate limits that fail closed,
+strict CSP (the browser talks only to this site), HSTS, frame-deny, no-store on signed-in pages. Prepared Safe transactions are kept
+server-side, single-use and expire in 5 minutes, so the browser can only supply a passkey signature, never change what is signed.
+
+## Passkey domain
+1Claw binds passkeys to the domain they were created on. Passkey steps work where 1Claw accepts the site origin. See the open questions to the 1Claw team.
 
 ## Run
-1. `cp .env.example .env.local`, fill X creds (callback `X_REDIRECT_URI` must be registered in the X dev portal), `SESSION_SECRET`, `TWITTER_API_KEY` (optional now).
-2. `ONE_CLAW_API_KEY=... node --experimental-strip-types scripts/provision-spender.ts --apply`, then send ~$5 ETH on Base to the printed spender address (gas only).
-3. `pnpm dev` (web) and `pnpm watcher` (mentions). `DRY=1 pnpm watcher` parses without sending anything.
-4. Optional: mount under another site with `NEXT_PUBLIC_BASE_PATH` plus a rewrite.
-
-`pnpm test` runs parser, limits and engine tests.
-
-## How tips work
-- **Web-first.** The website sends tips. X is only used to sign in (and one cached handle lookup per new recipient), which keeps X API costs near zero.
-- **Recipient has no wallet?** The tip waits 7 days and counts toward the sender's daily limit; nothing is debited. The sender gets a pre-filled tweet to tell them. The moment the recipient creates a wallet, waiting tips are sent.
-- **Optional mention trigger** (`pnpm watcher`): `@1clawAI tip @friend $1`. Quiet by default (replies only on problems). `REPLY_SUCCESS=1` replies on success, `NUDGES=1` posts invites. Every X post costs money, so both are off.
+`pnpm dev`, `pnpm test`. Env: see `.env.example`.

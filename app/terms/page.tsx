@@ -5,7 +5,9 @@ export default function Terms() {
     <h1>Terms of Service</h1>
     <p>Last updated October 2026. Cheese Pay lets you send small USDC tips to people on X. By using it, you agree to these terms.</p>
     <h2>What Cheese Pay is</h2>
-    <p>Cheese Pay is software. We do not hold your money. Your wallet is a passkey smart wallet on the Base network that only you control. When you set a spending limit, you sign a permission that lets Cheese Pay move USDC out of your wallet up to that limit, and no more. You can lower the limit or pause tipping at any time.</p>
+    <p>Cheese Pay is software, powered by 1Claw. Your wallet is a Safe on the Base network whose only owner is your passkey, created through your own 1Claw account. When you approve a daily limit, you sign an onchain allowance that lets the Cheese Pay agent send USDC from your wallet up to that amount per day, and no more. You can lower the limit, pause tipping, or remove the permission at any time.</p>
+    <h2>Tips to people without a wallet</h2>
+    <p>If you tip someone who has not set up Cheese Pay, the tip moves to a Cheese Pay holding wallet run on 1Claw. It is paid to them when they join, or returned to your wallet after 7 days. While it is held, we are responsible for it.</p>
     <h2>Your responsibilities</h2>
     <ul>
       <li>You are responsible for your passkey, your device, and your X account. If someone gets into them, they may be able to spend up to your limits.</li>
@@ -14,7 +16,7 @@ export default function Terms() {
       <li>Do not use Cheese Pay for fraud, harassment, spam, sanctions evasion, or anything illegal.</li>
     </ul>
     <h2>How tips work</h2>
-    <p>If the person you tip has no Cheese Pay wallet yet, the tip waits for up to 7 days and nothing is taken from your wallet until they join. If they do not join in time, it expires. Waiting tips count toward your daily limit so you cannot go over it.</p>
+    <p>Every tip, including one waiting for a new user, counts toward your daily limit, so you cannot go over it. Network fees are paid from your 1Claw account wallet.</p>
     <h2>No guarantees</h2>
     <p>Cheese Pay is provided as is. It can be slow, wrong, or unavailable. Networks, X, and other services we depend on can fail or change. To the extent the law allows, we are not liable for lost funds, missed tips, or other losses from using Cheese Pay. Nothing here is financial, legal, or tax advice.</p>
     <h2>Changes and contact</h2>
