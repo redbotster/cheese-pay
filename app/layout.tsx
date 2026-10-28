@@ -13,5 +13,5 @@ button:disabled{opacity:.5;cursor:default}code{background:var(--line);padding:2p
 table{width:100%;border-collapse:collapse}td{padding:8px 0;border-bottom:1px solid var(--line);color:var(--mute);font-size:.9rem}`;
 
 export default function Root({ children }: { children: ReactNode }) {
-  return (<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1" /><style dangerouslySetInnerHTML={{ __html: css }} /></head><body><main>{children}</main></body></html>);
+  return (<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1" /><style dangerouslySetInnerHTML={{ __html: css }} /></head><body><main>{children}<p style={{ marginTop: 48, fontSize: ".85rem" }}><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></main></body></html>);
 }
