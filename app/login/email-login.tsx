@@ -4,6 +4,8 @@ import { post } from "@/lib/webauthn";
 import { APPROVING, CHANNEL } from "@/lib/approval";
 
 const COOLDOWN = 30;
+// 1Claw only lets an OAuth token read the user's profile, not use their wallet, so this stays off until 1Claw allows it.
+const ONECLAW_SIGNIN = false;
 
 export default function EmailLogin({ expired }: { expired?: boolean }) {
   const [email, setEmail] = useState(""), [code, setCode] = useState(""), [step, setStep] = useState<"email" | "code">("email");
@@ -59,8 +61,7 @@ export default function EmailLogin({ expired }: { expired?: boolean }) {
       <p>Cheese Pay wallets are 1Claw wallets. We'll email you a one-time code from 1Claw. No password.</p>
       <p><input type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", maxWidth: 360 }} /></p>
       <button onClick={() => send()} disabled={busy || !email.includes("@")}>{busy ? "Sending…" : "Email me a code"}</button>{" "}
-      {oneclawButton}
-      <p className="muted">Already use 1Claw? Sign in with 1Claw and skip the code.</p>
+      {ONECLAW_SIGNIN && <>{oneclawButton}<p className="muted">Already use 1Claw? Sign in with 1Claw and skip the code.</p></>}
     </> : <>
       <b>Enter your code</b>
       <p><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} style={{ width: 160, letterSpacing: ".3em", fontSize: "1.2rem" }} /></p>
@@ -73,9 +74,13 @@ export default function EmailLogin({ expired }: { expired?: boolean }) {
 
     {existing && <div className="modal" role="dialog" aria-modal="true" aria-labelledby="oc-title">
       <div className="card">
-        <b id="oc-title">You already have a 1Claw account</b>
-        <p>Sign in with it instead. A 1Claw window will open. Sign in there and approve Cheese Pay, and you'll come right back here, signed in.</p>
-        <p>{oneclawButton}{" "}<button className="ghost" onClick={() => setExisting(false)} disabled={waiting}>Cancel</button></p>
+        <b id="oc-title">This email already has a 1Claw account</b>
+        {ONECLAW_SIGNIN
+          ? <><p>Sign in with it instead. A 1Claw window will open. Sign in there and approve Cheese Pay, and you'll come right back here, signed in.</p>
+            <p>{oneclawButton}{" "}<button className="ghost" onClick={() => setExisting(false)} disabled={waiting}>Cancel</button></p></>
+          : <><p>1Claw doesn't let Cheese Pay use an existing 1Claw account yet. Use a different email and we'll make you a fresh Cheese Pay wallet with it.</p>
+            <p className="muted">Tip: on Gmail, you+cheese@gmail.com works and lands in the same inbox.</p>
+            <p><button onClick={() => { setExisting(false); setStep("email"); setCode(""); setEmail(""); setMsg(""); }}>Use a different email</button></p></>}
       </div>
     </div>}
   </div>);
