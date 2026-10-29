@@ -28,7 +28,11 @@ async function call<T>(path: string, o: { method?: string; token?: string; body?
 
 // ---- email sign-in (the user's 1Claw account; wallets are created on first sign-in)
 export const sendOtp = (email: string) => call("/v1/auth/email-otp/send", { body: { email, platform_app_id: APP_ID() } });
-export type OtpResult = { __status: number; token?: string; user_id?: string; email?: string; mfa_required?: boolean; link_required?: { authorize_url?: string } };
+// "Sign in with 1Claw" for existing 1Claw users (OAuth code + PKCE)
+export const oauthToken = (code: string, redirect_uri: string, code_verifier: string) =>
+  call<{ access_token: string; expires_in?: number }>("/v1/oauth/token", { body: { grant_type: "authorization_code", code, client_id: process.env.ONECLAW_OAUTH_CLIENT_ID ?? "cheese-pay", redirect_uri, code_verifier } });
+export const whoAmI = (token: string) => call<{ id?: string; email?: string }>("/v1/auth/me", { token });
+export type OtpResult ={ __status: number; token?: string; user_id?: string; email?: string; mfa_required?: boolean; link_required?: { authorize_url?: string } };
 export const verifyOtp = (email: string, code: string) =>
   call<OtpResult>("/v1/auth/email-otp/verify", { body: { email, code, platform_app_id: APP_ID(), auto_provision_chains: ["base"], allow_signup: true } });
 
