@@ -3,6 +3,7 @@ import { Fredoka, Inter } from "next/font/google";
 import { Wedge } from "./wedge";
 import Logout from "./logout";
 import SwRegister from "./sw-register";
+import ApprovalReturn from "./approval-return";
 import { getSession } from "@/lib/session";
 import { memberById } from "@/lib/db";
 
@@ -94,6 +95,7 @@ export default async function Root({ children }: { children: ReactNode }) {
           {children}
           <footer><p className="powered"><a href="https://1claw.co" target="_blank" rel="noreferrer">Powered by <b>1Claw</b></a></p><p><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p></footer>
           <SwRegister />
+          <ApprovalReturn />
         </main>
       </body>
     </html>

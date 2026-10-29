@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { post } from "@/lib/webauthn";
+import { APPROVING, CHANNEL } from "../approval-return";
 
 const COOLDOWN = 30;
 
@@ -34,18 +35,25 @@ export default function EmailLogin({ expired }: { expired?: boolean }) {
   // and only email a new one if that code is used up.
   function approve() {
     const w = 520, h = 720;
+    try { localStorage.setItem(APPROVING, String(Date.now())); sessionStorage.setItem(APPROVING, "1"); } catch {}
     const pop = window.open(link, "oneclaw-approve", `popup,width=${w},height=${h},left=${(screen.width - w) / 2},top=${(screen.height - h) / 2}`);
     if (!pop) return void (location.href = link); // popup blocked: go there in this tab instead
     setWaiting(true); setNotYet(false);
-    timer.current = setInterval(async () => {
-      if (!pop.closed) return;
+    let done = false, ch: BroadcastChannel | null = null;
+    const finish = async () => {
+      if (done) return; done = true;
       if (timer.current) clearInterval(timer.current);
+      ch?.close();
+      try { localStorage.removeItem(APPROVING); sessionStorage.removeItem(APPROVING); } catch {}
+      try { pop.close(); } catch {}
       setWaiting(false);
       const res = await verify(true);
       if (res === "link") return setNotYet(true); // closed before approving: no new email, just ask again
       setLink("");
-      if (res === "bad") send(`Thanks. We sent a new code to ${email} to finish signing in.`);
-    }, 600);
+      if (res === "bad") send(`Approved. We sent a new code to ${email} to finish signing in.`);
+    };
+    try { ch = new BroadcastChannel(CHANNEL); ch.onmessage = (e) => { if (e.data === "approved") finish(); }; } catch {}
+    timer.current = setInterval(() => { if (pop.closed) finish(); }, 800);
   }
 
   return (<div className="card">
