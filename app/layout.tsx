@@ -59,6 +59,7 @@ input:focus{outline:3px solid var(--cheese);border-color:var(--cheese-deep)}
 code{background:var(--cheese-soft);padding:2px 8px;border-radius:8px;color:var(--fg);font-size:.9em}
 table{width:100%;border-collapse:collapse}td{padding:10px 4px;border-bottom:1px dashed var(--line);color:var(--mute);font-size:.92rem}
 .err{color:var(--red)}.okk{color:var(--ok)}
+.muted{opacity:.7;font-size:.9rem}
 .modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(20,14,4,.55)}
 .modal .card{max-width:440px;width:100%;margin:0}
 .pill{display:inline-block;background:var(--cheese-soft);color:var(--fg);border:2px solid var(--line);border-radius:999px;padding:2px 12px;font:600 .8rem var(--font-body);margin-bottom:10px}
