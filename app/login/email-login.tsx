@@ -50,6 +50,7 @@ export default function EmailLogin({ expired }: { expired?: boolean }) {
       <b>Enter your code</b>
       <p><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} style={{ width: 160, letterSpacing: ".3em", fontSize: "1.2rem" }} /></p>
       <button onClick={verify} disabled={busy || code.length !== 6}>{busy ? "Checking…" : "Sign in"}</button>{" "}
+      <button className="ghost" onClick={() => send(`We sent a new code to ${email}. Use the newest one.`)} disabled={busy}>Send a new code</button>{" "}
       <button className="ghost" onClick={() => { setStep("email"); setCode(""); setMsg(""); }} disabled={busy}>Use a different email</button>
     </>}
     {msg && <p>{msg}</p>}
