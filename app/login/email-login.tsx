@@ -52,7 +52,7 @@ export default function EmailLogin({ expired }: { expired?: boolean }) {
       setLink("");
       if (res === "bad") send(`Approved. We sent a new code to ${email} to finish signing in.`);
     };
-    try { ch = new BroadcastChannel(CHANNEL); ch.onmessage = (e) => { if (e.data === "approved") finish(); }; } catch {}
+    try { ch = new BroadcastChannel(CHANNEL); ch.onmessage = (e) => { if (e.data === "approved" || e.data === "denied") finish(); }; } catch {}
     timer.current = setInterval(() => { if (pop.closed) finish(); }, 800);
   }
 
