@@ -59,6 +59,8 @@ input:focus{outline:3px solid var(--cheese);border-color:var(--cheese-deep)}
 code{background:var(--cheese-soft);padding:2px 8px;border-radius:8px;color:var(--fg);font-size:.9em}
 table{width:100%;border-collapse:collapse}td{padding:10px 4px;border-bottom:1px dashed var(--line);color:var(--mute);font-size:.92rem}
 .err{color:var(--red)}.okk{color:var(--ok)}
+.modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(20,14,4,.55)}
+.modal .card{max-width:440px;width:100%;margin:0}
 .pill{display:inline-block;background:var(--cheese-soft);color:var(--fg);border:2px solid var(--line);border-radius:999px;padding:2px 12px;font:600 .8rem var(--font-body);margin-bottom:10px}
 .preview{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:18px 20px;margin:6px 0 22px;box-shadow:0 6px 0 var(--line);transform:rotate(-1.2deg)}
 .preview .row{display:flex;align-items:center;gap:12px;font:600 1.15rem var(--font-display)}

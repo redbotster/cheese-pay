@@ -4,6 +4,15 @@ import { verifyOtp } from "@/lib/oneclaw";
 import { upsertMember } from "@/lib/db";
 import { setSession } from "@/lib/session";
 
+// Only ever hand the browser an https link on a 1Claw domain.
+function oneclawUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    const ok = u.protocol === "https:" && ["1claw.co", "1claw.xyz"].some((d) => u.hostname === d || u.hostname.endsWith("." + d));
+    return ok ? u.toString() : null;
+  } catch { return null; }
+}
+
 export async function POST(req: Request) {
   const no = await guard(req, "otp-verify", 20, 600); if (no) return no;
   const b = await req.json().catch(() => ({}));
@@ -12,8 +21,11 @@ export async function POST(req: Request) {
   if (!(await allow(`otp-try:${email}`, 6, 600))) return json({ error: "Too many tries. Request a new code in a few minutes." }, 429);
   try {
     const r = await verifyOtp(email, code);
-    if (r.__status === 409 && r.link_required?.authorize_url) // already has a 1Claw account in another org: they approve the link on 1Claw
-      return json({ link: r.link_required.authorize_url, error: "You already have a 1Claw account. Approve Cheese Pay on 1Claw, then sign in again." }, 409);
+    if (r.__status === 409 && r.link_required?.authorize_url) { // already has a 1Claw account in another org: they approve the link on 1Claw
+      const link = oneclawUrl(r.link_required.authorize_url);
+      if (!link) return json({ error: "Couldn't start the 1Claw approval. Try again in a minute." }, 502);
+      return json({ link, error: "You already have a 1Claw account. Approve Cheese Pay there to keep going." }, 409);
+    }
     if (r.mfa_required) return json({ error: "Your 1Claw account uses two-factor sign-in, which Cheese Pay doesn't support yet." }, 400);
     if (!r.token || !r.user_id) return json({ error: "That code didn't work. Check it and try again." }, 401);
     await upsertMember(r.user_id, r.email ?? email);
